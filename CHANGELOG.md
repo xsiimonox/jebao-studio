@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.2.4
+
+- Der Release-ZIP-Download ist entfernt: Die HACS-Installation nutzt wieder die einzeln erreichbaren Repository-Dateien.
+- Damit umgeht sie den Fehler beim Weiterleiten von GitHubs Release-Download auf der betroffenen Home-Assistant-Installation.
+
 ## 0.2.3
 
 - HACS verwendet ein explizites, fertig gepacktes ZIP-Release anstelle der automatischen GitHub-Repository-Archive, deren Download mit HTTP 502/504 scheiterte.

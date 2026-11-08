@@ -1,4 +1,4 @@
-"""Verify HACS archive extraction uses the real integration installation root."""
+"""Verify the manual archive has the documented Home Assistant layout."""
 import importlib.util
 import json
 from pathlib import Path
@@ -13,24 +13,16 @@ spec.loader.exec_module(builder)
 
 
 class ReleaseTests(unittest.TestCase):
-    def test_hacs_and_manual_archives_install_identical_content(self):
+    def test_manual_archive_installs_into_custom_components(self):
         config = json.loads((ROOT / 'hacs.json').read_text())
-        self.assertTrue(config['zip_release'])
+        self.assertNotIn('zip_release', config)
         with tempfile.TemporaryDirectory() as temporary:
-            manual, hacs = builder.build_release(Path(temporary) / 'dist')
-            self.assertEqual(hacs.name, config['filename'])
-            hacs_target = Path(temporary) / 'hacs-config/custom_components/jebao_studio'
+            manual = builder.build_release(Path(temporary) / 'dist')
             manual_target = Path(temporary) / 'manual-config'
-            with zipfile.ZipFile(hacs) as archive:
-                self.assertIsNone(archive.testzip())
-                self.assertIn('manifest.json', archive.namelist())
-                self.assertFalse(any(name.startswith('custom_components/') for name in archive.namelist()))
-                archive.extractall(hacs_target)
             with zipfile.ZipFile(manual) as archive:
                 self.assertIsNone(archive.testzip())
                 archive.extractall(manual_target)
             for relative in ('manifest.json', '__init__.py', 'NOTICE.md', 'panel/jebao-studio.js',
                              'panel/model.js', 'brand/icon.png', 'brand/logo.png', 'translations/de.json'):
-                self.assertEqual((hacs_target / relative).read_bytes(),
-                    (manual_target / 'custom_components/jebao_studio' / relative).read_bytes())
-            self.assertEqual(json.loads((hacs_target / 'manifest.json').read_text())['domain'], 'jebao_studio')
+                self.assertTrue((manual_target / 'custom_components/jebao_studio' / relative).is_file())
+            self.assertEqual(json.loads((manual_target / 'custom_components/jebao_studio' / 'manifest.json').read_text())['domain'], 'jebao_studio')
