@@ -1,4 +1,6 @@
 {
   "name": "Jebao Studio",
-  "homeassistant": "2026.10.1"
+  "homeassistant": "2026.10.1",
+  "zip_release": true,
+  "filename": "jebao_studio.zip"
 }

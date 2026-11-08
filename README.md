@@ -1,6 +1,6 @@
 # Jebao Studio
 
-Home-Assistant-Integration mit eigener Seitenleiste für Jebao/Jecod-Pumpen aus der **Jebao Aqua App**. Schwerpunkt: Strömungspumpen, insbesondere MLW über WLAN. Version **0.2.2, experimentell**.
+Home-Assistant-Integration mit eigener Seitenleiste für Jebao/Jecod-Pumpen aus der **Jebao Aqua App**. Schwerpunkt: Strömungspumpen, insbesondere MLW über WLAN. Version **0.2.3, experimentell**.
 
 <p align="center"><img src="custom_components/jebao_studio/brand-logo.png" alt="Jebao Studio Logo" width="180"></p>
 
@@ -43,7 +43,7 @@ Entscheidend ist der **Produkt-Key des Controllers**, nicht allein der Name der 
 
 Voraussetzung: **Home Assistant 2026.10.1 oder neuer**. WLAN-Controller zuerst mit Jebao Aqua im WLAN einrichten. HA muss UDP **12414** und TCP **12416** des Controllers erreichen können.
 
-1. Das Installationspaket [jebao-studio-0.1.0.zip](https://github.com/xsiimonox/jebao-studio/releases/download/v0.1.0/jebao-studio-0.1.0.zip) im Home-Assistant-Konfigurationsverzeichnis entpacken. Anschließend muss `/config/custom_components/jebao_studio/manifest.json` existieren. Alternativ den enthaltenen Ordner manuell kopieren.
+1. Das Installationspaket [jebao-studio-0.2.3.zip](https://github.com/xsiimonox/jebao-studio/releases/download/v0.2.3/jebao-studio-0.2.3.zip) im Home-Assistant-Konfigurationsverzeichnis entpacken. Anschließend muss `/config/custom_components/jebao_studio/manifest.json` existieren. Alternativ den enthaltenen Ordner manuell kopieren. Die separate Datei `jebao_studio.zip` ist für HACS vorgesehen.
 2. Home Assistant neu starten.
 3. **Einstellungen → Geräte & Dienste → Integration hinzufügen → Jebao Studio**.
 4. Für MLW **WLAN-Controller im Netzwerk suchen** oder die IP-Einrichtung wählen.

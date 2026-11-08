@@ -13,11 +13,11 @@ Voraussetzung: Home Assistant Core **2026.10.1 oder neuer**. Eine Einrichtung de
 
 Unter **Gruppen** können erreichbare Strömungspumpen dauerhaft zusammengefasst werden. Die Gruppensteuerung zeigt nur Aktionen an, die das jeweilige Controllerprofil unterstützt.
 
-Das Repository liefert `custom_components/jebao_studio` direkt aus. Der HACS-Standardkatalog ist nicht beantragt. Der nummerierte Release ist als experimentell dokumentiert und benötigt kein aktiviertes Beta-Repository.
+Ab 0.2.3 lädt HACS die fertig gepackte Release-Datei `jebao_studio.zip` und entpackt sie direkt in den Integrationsordner. Der HACS-Standardkatalog ist nicht beantragt. Der nummerierte Release ist als experimentell dokumentiert und benötigt kein aktiviertes Beta-Repository.
 
 ## Manuell
 
-Das ZIP aus [Releases](https://github.com/xsiimonox/jebao-studio/releases) herunterladen. Im Home-Assistant-Konfigurationsverzeichnis entpacken, sodass `/config/custom_components/jebao_studio/manifest.json` existiert. Keine zusätzliche Ebene wie `/config/custom_components/jebao-studio-0.1.0/custom_components/` anlegen. Danach HA neu starten und die Integration hinzufügen.
+Das nummerierte ZIP `jebao-studio-<Version>.zip` aus [Releases](https://github.com/xsiimonox/jebao-studio/releases) herunterladen. Im Home-Assistant-Konfigurationsverzeichnis entpacken, sodass `/config/custom_components/jebao_studio/manifest.json` existiert. Die Datei `jebao_studio.zip` ist dagegen für HACS vorgesehen und enthält keinen `custom_components/`-Präfix. Danach HA neu starten und die Integration hinzufügen.
 
 ## Erste WLAN-Prüfung
 

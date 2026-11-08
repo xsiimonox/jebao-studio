@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.2.3
+
+- HACS verwendet ein explizites, fertig gepacktes ZIP-Release anstelle der automatischen GitHub-Repository-Archive, deren Download mit HTTP 502/504 scheiterte.
+- Getrennte Pakete für HACS (Integration im ZIP-Hauptverzeichnis) und manuelle Installation (`custom_components/jebao_studio/`).
+- Installation beider Archive wird durch einen Extraktionstest auf identischen Inhalt geprüft.
+
 ## 0.2.2
 
 - Versionsgebundener Import der Panel-Hilfsdatei verhindert eine leere Seite durch alte Browser-Module nach dem Update.
