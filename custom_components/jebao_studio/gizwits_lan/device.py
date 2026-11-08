@@ -337,7 +337,26 @@ class Device:
         ack_payload = await self._send_command_with_seq(0x93, 0x94, seq, payload, timeout)
         logger.debug("Partial update ack, seq=%s, ack_payload=%s", seq.hex(),
                      ack_payload.hex() if ack_payload else "<none>")
+        # A 0x94 acknowledgement carries the controller's resulting status
+        # as its final bytes. Previously it was returned to the caller but
+        # discarded, so Home Assistant kept rendering the last pre-write
+        # value until a later unsolicited status packet arrived.
+        if ack_payload and len(ack_payload) >= self.max_status_len:
+            self._apply_status_data(ack_payload[-self.max_status_len:])
         return ack_payload
+
+    def _apply_status_data(self, status_data: bytes) -> None:
+        """Store a status payload and publish it to entity listeners."""
+        if len(status_data) < self.max_status_len:
+            logger.debug("Status payload len=%d < %d, ignoring", len(status_data), self.max_status_len)
+            return
+        self.current_status = DeviceStatus(self._unpack_status_data(status_data))
+        logger.debug("Device status updated => %s", self.current_status)
+        for callback in self._status_callbacks:
+            try:
+                callback(self.current_status)
+            except Exception as exc:
+                logger.error("Error in status callback: %s", exc)
 
     def _set_one_writable_attribute(self, attr, user_value, attr_flags, attr_values):
         a_id = attr["id"]
@@ -487,15 +506,7 @@ class Device:
                 return
             status_data = payload[-self.max_status_len:]
             logger.debug("Raw status bytes: %s", ' '.join(f'{b:02x}' for b in status_data))
-            parsed_dict = self._unpack_status_data(status_data)
-            # We should really validate the status data is sane first - use the datapoint model to verify
-            self.current_status = DeviceStatus(parsed_dict)
-            logger.debug("Device status updated => %s", self.current_status)
-            for callback in self._status_callbacks:
-                try:
-                    callback(self.current_status)
-                except Exception as e:
-                    logger.error("Error in status callback: %s", e)
+            self._apply_status_data(status_data)
             return
 
         # Handle 0x94 => Partial update ACK

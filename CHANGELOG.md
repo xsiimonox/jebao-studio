@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.2.6
+
+- Übernimmt den Status aus der Controller-Antwort nach Schreibbefehlen für Leistung, Modus und Schalter.
+- Verhindert, dass Home Assistant den vorherigen Wert nach einer bestätigten Änderung erneut anzeigt.
+
 ## 0.2.5
 
 - Gespeicherte Controller bleiben bei fehlender Laufzeiteinrichtung im Studio sichtbar.

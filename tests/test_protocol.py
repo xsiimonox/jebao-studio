@@ -45,6 +45,21 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
         await asyncio.gather(*(device.set_device_attribute('Flow', value) for value in (30, 40, 50)))
         self.assertEqual(len(set(sequences)), 3)
 
+    async def test_write_ack_applies_the_controller_status_to_entities(self):
+        device = make_device(); device._connected = True
+        updates = []
+        device.add_status_callback(lambda status: updates.append(status.data.copy()))
+        status_bytes = bytearray(device.max_status_len)
+        # Flow is byte 2 in this MLW profile. The acknowledgement includes
+        # an action byte before the resulting status data.
+        status_bytes[2] = 73
+        async def send(cmd, response, seq, payload, timeout):
+            return b'\x00' + bytes(status_bytes)
+        device._send_command_with_seq = send
+        await device.set_device_attribute('Flow', 73)
+        self.assertEqual(device.get_attribute('Flow'), 73)
+        self.assertEqual(updates[-1]['Flow'], 73)
+
     async def test_disconnected_write_fails(self):
         with self.assertRaises(RuntimeError):
             await make_device().set_device_attribute('SwitchON', True)
