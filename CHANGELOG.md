@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.2.9
+
+- Im Modus „Konstant“ wird keine Wellenfrequenz mehr angezeigt oder gesendet.
+
 ## 0.2.8
 
 - Pumpenkarten laden unabhängig von einer langsamen oder fehlgeschlagenen Gruppenabfrage.

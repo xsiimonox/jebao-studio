@@ -167,7 +167,7 @@ async def test_actual_panel_registration_is_admin_only_and_idempotent(hass):
     panel = hass.data[frontend.DATA_PANELS]['jebao-studio']
     assert panel.require_admin is True
     assert panel.sidebar_title == 'Jebao Studio'
-    assert panel.config['_panel_custom']['module_url'].endswith('?v=0.2.8')
+    assert panel.config['_panel_custom']['module_url'].endswith('?v=0.2.9')
     hass.http.async_register_static_paths.assert_awaited_once()
     async_remove_studio_panel(hass)
     assert 'jebao-studio' not in hass.data[frontend.DATA_PANELS]
