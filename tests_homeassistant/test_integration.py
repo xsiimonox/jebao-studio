@@ -155,6 +155,20 @@ async def test_actual_panel_registration_is_admin_only_and_idempotent(hass):
     panel = hass.data[frontend.DATA_PANELS]['jebao-studio']
     assert panel.require_admin is True
     assert panel.sidebar_title == 'Jebao Studio'
+    assert panel.config['_panel_custom']['module_url'].endswith('?v=0.2.2')
     hass.http.async_register_static_paths.assert_awaited_once()
     async_remove_studio_panel(hass)
     assert 'jebao-studio' not in hass.data[frontend.DATA_PANELS]
+
+
+async def test_brand_icon_and_logo_are_served_by_home_assistant(hass):
+    from homeassistant.components.brands import BrandsIntegrationView
+    from homeassistant.loader import async_get_custom_components
+    integrations = await async_get_custom_components(hass)
+    assert integrations['jebao_studio'].has_branding
+    view = BrandsIntegrationView(hass)
+    for image in ('icon.png', 'logo.png', 'dark_icon.png', 'icon@2x.png'):
+        response = await view._serve_from_custom_integration('jebao_studio', image)
+        assert response is not None
+        assert response.content_type == 'image/png'
+        assert response.body.startswith(b'\x89PNG\r\n\x1a\n')

@@ -1,6 +1,6 @@
 # Jebao Studio
 
-Home-Assistant-Integration mit eigener Seitenleiste für Jebao/Jecod-Pumpen aus der **Jebao Aqua App**. Schwerpunkt: Strömungspumpen, insbesondere MLW über WLAN. Version **0.2.0, experimentell**.
+Home-Assistant-Integration mit eigener Seitenleiste für Jebao/Jecod-Pumpen aus der **Jebao Aqua App**. Schwerpunkt: Strömungspumpen, insbesondere MLW über WLAN. Version **0.2.2, experimentell**.
 
 <p align="center"><img src="custom_components/jebao_studio/brand-logo.png" alt="Jebao Studio Logo" width="180"></p>
 
