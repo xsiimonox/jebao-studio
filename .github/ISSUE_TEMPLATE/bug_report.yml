@@ -1,0 +1,32 @@
+name: Fehler melden
+description: Einrichtungs-, Verbindungs- oder Steuerungsfehler dokumentieren.
+body:
+  - type: markdown
+    attributes:
+      value: Bitte keine Passwörter, Tokens oder vollständigen Smartphone-Bugreports hochladen. DMP-Bluetooth-Steuerung ist in 0.1.0 noch nicht implementiert.
+  - type: input
+    id: versions
+    attributes:
+      label: Versionen
+      description: Home Assistant Core und Jebao Studio
+    validations:
+      required: true
+  - type: input
+    id: controller
+    attributes:
+      label: Pumpe und Controller
+      description: Genaue Modellnummer, Firmware, WLAN oder Bluetooth; wenn bekannt Produkt-Key.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Fehler und Schritte zur Wiederholung
+      description: Erwartetes Verhalten und tatsächlich beobachtetes Verhalten.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Bereinigter Protokollausschnitt
+      render: text

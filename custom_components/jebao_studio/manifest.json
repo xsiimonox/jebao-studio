@@ -1,0 +1,21 @@
+{
+  "domain": "jebao_studio",
+  "name": "Jebao Studio",
+  "codeowners": [
+    "@xsiimonox"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "frontend",
+    "http",
+    "websocket_api",
+    "bluetooth",
+    "panel_custom"
+  ],
+  "documentation": "https://github.com/xsiimonox/jebao-studio",
+  "iot_class": "local_push",
+  "requirements": [],
+  "version": "0.1.0",
+  "integration_type": "hub",
+  "issue_tracker": "https://github.com/xsiimonox/jebao-studio/issues"
+}

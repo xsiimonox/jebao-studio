@@ -1,0 +1,45 @@
+name: Validate
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m compileall -q custom_components
+      - run: python -m unittest discover -s tests -v
+      - run: npm test
+      - run: python tools/build_release.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jebao-studio
+          path: dist/*.zip
+  homeassistant:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        core: ['2026.10.1', '2026.10.4']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: requirements-test.txt
+      - run: python -m pip install "homeassistant==${{ matrix.core }}" "pytest>=9,<10" "pytest-asyncio>=1,<2"
+      - run: python -m pytest tests_homeassistant -q
+  hacs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@main
+        with:
+          category: integration
+          ignore: brands

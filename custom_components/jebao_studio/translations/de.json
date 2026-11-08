@@ -1,0 +1,345 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Dieser Controller ist bereits eingerichtet.",
+      "devices_added": "Neue Controller wurden hinzugefügt.",
+      "device_added": "Controller wurde hinzugefügt.",
+      "auto_discovery_complete": "Auto-discovery complete; devices added.",
+      "devices_already_configured": "All discovered devices are already configured."
+    },
+    "error": {
+      "cannot_connect": "Controller nicht erreichbar. IP-Adresse und Netzwerk prüfen.",
+      "already_configured": "Dieser Controller ist bereits eingerichtet.",
+      "user_not_exist": "No account exists with this email address in the selected region.",
+      "invalid_password": "Incorrect password.",
+      "connection_error": "Could not reach the Gizwits cloud service. Check your internet connection.",
+      "unknown_error": "The Gizwits cloud service returned an unexpected error.",
+      "invalid_json": "The Gizwits cloud service returned an invalid response.",
+      "invalid_response": "The Gizwits cloud service response did not include a login token.",
+      "auth": "Login failed. Check your email address and password.",
+      "no_devices": "No devices are bound to this Gizwits account.",
+      "ble_not_found": "Bluetooth-Controller nicht erreichbar. Empfang prüfen und Jebao Aqua schließen.",
+      "unknown": "Unerwarteter Fehler. Home-Assistant-Protokoll prüfen."
+    },
+    "step": {
+      "manual": {
+        "title": "WLAN-Controller hinzufügen",
+        "description": "Gib die IP-Adresse des bereits in Jebao Aqua eingerichteten WLAN-Controllers an. Der Controller muss von Home Assistant aus erreichbar sein.",
+        "data": {
+          "ip": "IP-Adresse",
+          "name": "Name (optional)"
+        }
+      },
+      "user": {
+        "title": "Jebao Studio einrichten",
+        "description": "WLAN-Pumpen werden direkt im lokalen Netzwerk gesteuert. Reine Bluetooth-Controller wie deine DMP können derzeit für die Protokolldiagnose hinzugefügt werden; ihre Steuerung ist noch nicht implementiert.",
+        "menu_options": {
+          "local": "WLAN-Controller im Netzwerk suchen",
+          "manual": "WLAN-Controller über IP hinzufügen",
+          "ble": "Bluetooth-Diagnose (DMP; noch keine Steuerung)",
+          "cloud": "Cloud-Steuerung (Jebao-Aqua-Konto)"
+        }
+      },
+      "cloud": {
+        "title": "Jebao-Aqua-Konto",
+        "description": "Optional: Anmeldung beim Gizwits-Dienst für Cloud-Steuerung. Geräte werden alle 30 Sekunden abgefragt. WLAN-Steuerung benötigt kein Konto.",
+        "data": {
+          "region": "Kontoregion",
+          "email": "E-Mail-Adresse",
+          "password": "Passwort"
+        },
+        "data_description": {
+          "password": "Das Passwort wird in der Home-Assistant-Konfiguration gespeichert, um den Zugang erneuern zu können."
+        }
+      },
+      "ble": {
+        "title": "Bluetooth-Controller zur Diagnose hinzufügen",
+        "description": "Die DMP-Steuerung ist noch nicht implementiert. Wähle ausschließlich deinen Jebao-Controller aus. Anschließend kannst du in Jebao Studio seine Bluetooth-Schnittstellen auslesen. Es werden keine Pumpenbefehle gesendet. Jebao Aqua vor dem Auslesen schließen.",
+        "data": {
+          "address": "Bluetooth-Controller",
+          "name": "Name"
+        }
+      }
+    }
+  },
+  "entity": {
+    "switch": {
+      "switchon": {
+        "name": "Pumpe"
+      },
+      "pulsetide": {
+        "name": "Puls / Gezeiten"
+      },
+      "feedswitch": {
+        "name": "Fütterung"
+      },
+      "timeron": {
+        "name": "Gerätezeitplan"
+      },
+      "switch": {
+        "name": "Hauptschalter"
+      },
+      "master": {
+        "name": "Master"
+      },
+      "asyc": {
+        "name": "Asynchron"
+      },
+      "timer": {
+        "name": "Timer"
+      },
+      "feedtimer": {
+        "name": "Fütterungs-Timer"
+      },
+      "timer1on": {
+        "name": "Timer 1"
+      },
+      "channe1": {
+        "name": "Channel 1"
+      },
+      "channe2": {
+        "name": "Channel 2"
+      },
+      "channe3": {
+        "name": "Channel 3"
+      },
+      "channe4": {
+        "name": "Channel 4"
+      },
+      "timer2on": {
+        "name": "Timer 2"
+      },
+      "timer3on": {
+        "name": "Timer 3"
+      },
+      "timer4on": {
+        "name": "Timer 4"
+      },
+      "mode": {
+        "name": "Modus"
+      },
+      "channe5": {
+        "name": "Channel 5"
+      },
+      "timer5on": {
+        "name": "Timer 5"
+      },
+      "calsw": {
+        "name": "Calibration Mode"
+      }
+    },
+    "binary_sensor": {
+      "fault_overcurrent": {
+        "name": "Überstrom"
+      },
+      "fault_overvoltage": {
+        "name": "Überspannung"
+      },
+      "fault_overtemp": {
+        "name": "Übertemperatur"
+      },
+      "fault_undervoltage": {
+        "name": "Unterspannung"
+      },
+      "fault_lockedrotor": {
+        "name": "Rotor blockiert"
+      },
+      "fault_no_liveload": {
+        "name": "Trockenlauf"
+      },
+      "fault_uart": {
+        "name": "Controller-Kommunikation"
+      },
+      "overtemp": {
+        "name": "Over Temperature"
+      },
+      "overcurrent": {
+        "name": "Over Current"
+      },
+      "fault_fan": {
+        "name": "Fan Fault"
+      },
+      "opencircuit": {
+        "name": "Open Circuit"
+      }
+    },
+    "select": {
+      "mode": {
+        "state": {
+          "pulse_wave": "Puls",
+          "square_wave": "Rechteckwelle",
+          "sine_wave": "Sinuswelle",
+          "random_wave": "Zufall",
+          "constant_flow": "Konstant",
+          "tide": "Gezeiten",
+          "nutrient_transport": "Nährstofftransport",
+          "circulation": "Zirkulation",
+          "feeding": "Fütterung",
+          "custom_wave": "Eigene Welle",
+          "night": "Night",
+          "timed": "Timed",
+          "manual": "Manuell",
+          "sunrise": "Sunrise",
+          "sunset": "Sunset",
+          "morning": "Morning",
+          "daytime": "Daytime"
+        },
+        "name": "Modus"
+      },
+      "linkage": {
+        "state": {
+          "independent": "Unabhängig",
+          "primary": "Master",
+          "secondary": "Slave",
+          "synchronous_secondary": "Synchroner Slave",
+          "asynchronous_secondary": "Asynchroner Slave"
+        },
+        "name": "Pumpenverbund"
+      },
+      "automode": {
+        "state": {
+          "off": "Aus",
+          "square_wave": "Rechteckwelle",
+          "sine_wave": "Sinuswelle",
+          "random_wave": "Zufall",
+          "constant_flow": "Konstant",
+          "pulse_wave": "Puls",
+          "feeding": "Fütterung",
+          "auto": "Automatisch"
+        },
+        "name": "Automatikmodus"
+      },
+      "calset": {
+        "state": {
+          "calibration_1": "Calibration 1",
+          "calibration_2": "Calibration 2",
+          "calibration_3": "Calibration 3",
+          "calibration_4": "Calibration 4",
+          "calibration_5": "Calibration 5",
+          "calibration_6": "Calibration 6",
+          "calibration_7": "Calibration 7",
+          "calibration_8": "Calibration 8"
+        }
+      }
+    },
+    "number": {
+      "autoflow": {
+        "name": "Scheduled Flow"
+      },
+      "flow": {
+        "name": "Strömungsleistung"
+      },
+      "autofreq": {
+        "name": "Scheduled Frequency"
+      },
+      "frequency": {
+        "name": "Wellenfrequenz"
+      },
+      "feedtime": {
+        "name": "Fütterungsdauer"
+      },
+      "nightflow": {
+        "name": "Nachtleistung"
+      },
+      "motorspeed": {
+        "name": "Motor Speed"
+      },
+      "intervalt1": {
+        "name": "Interval T1"
+      },
+      "intervalt2": {
+        "name": "Interval T2"
+      },
+      "intervalt3": {
+        "name": "Interval T3"
+      },
+      "intervalt4": {
+        "name": "Interval T4"
+      }
+    },
+    "light": {
+      "color_blue1": {
+        "name": "Blue 1"
+      },
+      "color_white": {
+        "name": "White"
+      },
+      "color_blue2": {
+        "name": "Blue 2"
+      },
+      "color_green": {
+        "name": "Green"
+      },
+      "color_red": {
+        "name": "Red"
+      },
+      "volor_violet": {
+        "name": "Violet"
+      }
+    },
+    "sensor": {
+      "color_blue1": {
+        "name": "Blue 1"
+      },
+      "color_white": {
+        "name": "White"
+      },
+      "color_blue2": {
+        "name": "Blue 2"
+      },
+      "color_green": {
+        "name": "Green"
+      },
+      "color_red": {
+        "name": "Red"
+      },
+      "volor_violet": {
+        "name": "Violet"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Jebao Aqua Options",
+        "description": "This integration currently manages {device_count} device(s). You can switch between local and cloud control, or rediscover devices to handle IP address changes (local mode only).",
+        "data": {
+          "mode": "Control mode",
+          "rediscover": "Rediscover devices"
+        },
+        "data_description": {
+          "mode": "Local control talks to the devices directly on your LAN with instant updates (recommended). Cloud control polls the Gizwits cloud service instead.",
+          "rediscover": "Scan the network again to find new devices and update stored IP addresses (local mode only)."
+        }
+      },
+      "cloud": {
+        "title": "Gizwits Cloud Login",
+        "description": "Switching to cloud control requires your Gizwits account credentials (the account used in the Jebao Aqua app).",
+        "data": {
+          "region": "Account region",
+          "email": "Email address",
+          "password": "Password"
+        },
+        "data_description": {
+          "region": "The Gizwits region your Jebao account was created in. Most users in Europe/Africa should pick Europe; the Americas and Asia-Pacific mostly use the Americas region.",
+          "email": "The email address you use to sign in to the Jebao Aqua app.",
+          "password": "Your Jebao Aqua app password. It is stored so the integration can refresh its access token automatically."
+        }
+      }
+    },
+    "error": {
+      "user_not_exist": "No account exists with this email address in the selected region.",
+      "invalid_password": "Incorrect password.",
+      "connection_error": "Could not reach the Gizwits cloud service. Check your internet connection.",
+      "unknown_error": "The Gizwits cloud service returned an unexpected error.",
+      "invalid_json": "The Gizwits cloud service returned an invalid response.",
+      "invalid_response": "The Gizwits cloud service response did not include a login token.",
+      "auth": "Login failed. Check your email address and password.",
+      "no_devices": "No devices are bound to this Gizwits account."
+    },
+    "abort": {
+      "ble_diagnostics_only": "Dieser Eintrag dient der Bluetooth-Diagnose. Öffne die Jebao-Studio-Seitenleiste."
+    }
+  },
+  "title": "Jebao Studio"
+}

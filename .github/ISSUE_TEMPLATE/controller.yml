@@ -1,0 +1,28 @@
+name: Controller-Unterstützung
+description: Ein weiteres Controllerprofil zur Prüfung vorschlagen.
+body:
+  - type: input
+    id: model
+    attributes:
+      label: Pumpen-/Controllermodell
+    validations:
+      required: true
+  - type: dropdown
+    id: transport
+    attributes:
+      label: Verbindung in Jebao Aqua
+      options:
+        - WLAN
+        - WLAN und Bluetooth
+        - Nur Bluetooth
+    validations:
+      required: true
+  - type: input
+    id: product
+    attributes:
+      label: Produkt-Key / Firmware
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Vorliegende Protokollinformationen
+      description: Bereinigte HA-Diagnose oder GATT-JSON; keine Zugangsdaten und keine vollständigen Telefon-Bugreports.

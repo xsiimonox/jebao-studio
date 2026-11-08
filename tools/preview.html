@@ -1,0 +1,14 @@
+<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Jebao Studio · Demo</title><style>body{margin:0}aside{background:#fff1c9;color:#604800;padding:10px 24px;font:13px system-ui}</style><aside>Oberflächenvorschau mit Beispieldaten · Keine Verbindung zu Pumpen</aside><jebao-studio-panel></jebao-studio-panel><script type="module">
+import '../custom_components/jebao_studio/panel/jebao-studio.js';
+const states={
+ 'switch.mlw_power':{state:'on',attributes:{friendly_name:'Pumpe'}},
+ 'number.mlw_flow':{state:'45',attributes:{friendly_name:'Strömungsleistung',min:30,max:100,step:1,unit_of_measurement:'%'}},
+ 'number.mlw_frequency':{state:'55',attributes:{friendly_name:'Wellenfrequenz',min:0,max:100,step:1}},
+ 'select.mlw_mode':{state:'sine_wave',attributes:{friendly_name:'Wellenmodus',options:['constant_flow','sine_wave','random_wave','square_wave']}},
+ 'switch.mlw_feed':{state:'off',attributes:{friendly_name:'Fütterung'}},
+ 'binary_sensor.mlw_fault':{state:'off',attributes:{friendly_name:'Rotor blockiert'}},
+};
+const panel=document.querySelector('jebao-studio-panel');
+const catalog=[{id:'demo-mlw',name:'MLW · Riff links',kind:'wavemaker',transport:'local',product_key:'1d8c63eaccac4205b92c84d77d5a08fb',available:true,entities:Object.keys(states).map(entity_id=>({entity_id}))},{id:'demo-dmp',name:'DMP · Riff rechts',kind:'bluetooth',transport:'ble_probe',entities:[]},{id:'demo-doser',name:'Dosierung · Vorbereitung',kind:'doser',transport:'local',product_key:'25c5b146791f465bbefdbfd312b9e8ea',available:false,entities:[]}];
+const hass={states,callWS:async msg=>{if(msg.type.endsWith('catalog'))return catalog;throw new Error('Demo: keine Bluetooth-Verbindung.');},callService:async(domain,service,data)=>{states[data.entity_id].state=service==='turn_on'?'on':service==='turn_off'?'off':String(data.value??data.option);panel.hass={...hass};}};panel.hass=hass;
+</script></html>
