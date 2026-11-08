@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.2.1
+
+- Pumpenkarten laden unabhängig von der Gruppen-API und bleiben auch bei einem verzögerten Home-Assistant-Neustart sichtbar.
+- Das Logo wird relativ zum Panel-Modul geladen und erscheint damit zuverlässig in Home Assistant und der Vorschau.
+
 ## 0.2.0
 
 - Neues Jebao-Studio-Logo und überarbeitete, auf Strömung ausgerichtete Oberfläche.
