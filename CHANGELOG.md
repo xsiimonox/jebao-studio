@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.4.1
+
+- Programm-/Manual-Betriebsart sichtbar auf der Pumpenkarte und direkt umschaltbar.
+- Programm-Modus wird erkannt; Hinweis und Schutz der manuellen Regler verhindern widersprüchliche Bedienung.
+- Gruppen erkennen Pumpen mit aktivem Geräteprogramm und bieten gemeinsame Umschaltung auf Manual.
+
 ## 0.4.0
 
 - Stabile Attributzuordnung auch bei umbenannten oder übersetzten Entitäten.

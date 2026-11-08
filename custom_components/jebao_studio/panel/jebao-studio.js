@@ -1,4 +1,4 @@
-import {command, offline, labels, groupDevices, controllable, controlsForDevice} from './model.js?v=0.4.0';
+import {command, offline, labels, groupDevices, controllable, controlsForDevice} from './model.js?v=0.4.1';
 
 const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!=null)n.textContent=text;if(cls)n.className=cls;return n};
 const n=value=>Math.max(0,Math.min(100,Number(value)||0));
@@ -15,7 +15,7 @@ class JebaoStudioPanel extends HTMLElement {
   connectedCallback(){if(this._renderGuardInstalled)return;this._renderGuardInstalled=true;this._drafts=new Map();this._interacting=false;const draw=this.render.bind(this);this.render=()=>{if(!this._interacting&&!this.busy&&!this.shadowRoot.activeElement?.matches('input,select')){draw();this.decorate()}};const card=this.card.bind(this);this.card=device=>this.enhanceCard(card(device),device);const groupCard=this.groupCard.bind(this);this.groupCard=group=>this.enhanceGroup(groupCard(group),group)}
   decorate(){
     const root=this.shadowRoot;
-    const footer=root.querySelector?.('footer');if(footer)footer.textContent='Jebao Studio 0.4.0 · Lokale Controllersteuerung';
+    const footer=root.querySelector?.('footer');if(footer)footer.textContent='Jebao Studio 0.4.1 · Lokale Controllersteuerung';
     for(const wave of root.querySelectorAll?.('.wave')||[])wave.setAttribute('aria-label','Schematische Modusdarstellung, keine Messung des Wasserflusses');
     const summary=root.querySelector?.('.summary');if(summary){const label=summary.querySelector('.eyebrow');if(label)label.textContent='MITTLERE EINGESTELLTE LEISTUNG';summary.append(el('small','Wellenbilder sind schematische Vorschauen.','wave-note'))}
     const style=el('style');style.textContent='details{margin-top:18px;border-top:1px solid var(--line);padding-top:14px}summary{cursor:pointer;font-size:14px;font-weight:600}details .secondary{margin-top:10px}.wave-note{position:absolute;bottom:9px;left:24px;font-size:10px;opacity:.8}button{min-height:44px}button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #007aff;outline-offset:3px}input[type=range]{touch-action:pan-y}input:disabled{opacity:.5}.card h2{overflow-wrap:anywhere}.control-label{gap:10px;align-items:center}.summary>div:not(.wave){z-index:1}.summary .wave{pointer-events:none}';root.append(style);
@@ -30,6 +30,8 @@ class JebaoStudioPanel extends HTMLElement {
     if(select&&modes.length){for(const option of [...select.options])if(!modes.every(s=>s.attributes.options?.includes(option.value)))option.remove();if(new Set(modes.map(s=>s.state)).size>1){const mixed=el('option','Unterschiedliche Modi');mixed.value='';mixed.disabled=true;mixed.selected=true;select.prepend(mixed);card.append(el('p','Die Pumpen haben unterschiedliche Modi. Eine Auswahl stellt den gemeinsamen Modus ein.','subtle'))}}
     const levels=sets.filter(c=>c.intensity).map(c=>value(c.intensity,states));
     if(new Set(levels).size>1)card.append(el('p','Leistungsbereich der Pumpen: '+Math.min(...levels)+'–'+Math.max(...levels)+' %. Der Gruppenregler setzt einen gemeinsamen Wert.','subtle'));
+    const programmed=sets.filter(c=>c.timer&&states[c.timer.entity_id]?.state==='on');
+    if(programmed.length){const note=el('div',null,'notice');note.append(el('p',programmed.length+' Pumpe(n) im Programm-Modus. Für gemeinsame manuelle Leistung und Wellenmodi zuerst auf Manual umstellen.'),this.button('Gruppe auf Manual umstellen',()=>this.setGroup(group,'timer',false),'primary'));card.prepend(note);for(const field of card.querySelectorAll('.control-area input, .mode-picker select'))field.disabled=true}
     return card;
   }
   enhanceCard(card,device){
@@ -45,7 +47,13 @@ class JebaoStudioPanel extends HTMLElement {
       if(button){button.textContent=feeding?'Fütterung beenden':'Fütterungspause';button.onclick=()=>this.set(c.feed.entity_id,!feeding)}
     }
     if(c.feedTime)details.append(this.slider(c.feedTime,'Fütterungsdauer',x=>this.set(c.feedTime.entity_id,x),'min'));
-    if(c.timer){const active=s[c.timer.entity_id]?.state==='on';details.append(el('p',active?'Zeitplan aktiv: Automatik kann manuelle Werte überschreiben.':'Zeitplan ausgeschaltet.','subtle'),this.button(active?'Zeitplan ausschalten':'Zeitplan einschalten',()=>this.set(c.timer.entity_id,!active),'secondary'))}
+    if(c.timer){
+      const active=s[c.timer.entity_id]?.state==='on';
+      const operating=el('label',null,'mode-picker'),select=el('select');operating.append(el('span','Betriebsart'));
+      for(const [v,label] of [['off','Manual · manuell'],['on','Programm · Gerätezeitplan']]){const option=el('option',label);option.value=v;option.selected=v===s[c.timer.entity_id].state;select.append(option)}
+      select.setAttribute('aria-label','Betriebsart');select.disabled=this.busy;select.onchange=async()=>{await this.set(c.timer.entity_id,select.value==='on');select.blur();this.render()};operating.append(select);card.prepend(operating);
+      if(active){const note=el('div',null,'notice');note.append(el('p','Programm-Modus aktiv: Der Gerätezeitplan steuert Leistung und Wellenmodus. Manuelle Änderungen werden dadurch überschrieben. Die Programme bleiben beim Umschalten gespeichert.'),this.button('Auf Manual umstellen',()=>this.set(c.timer.entity_id,false),'primary'));card.prepend(note);for(const field of card.querySelectorAll('.control-area input, .mode-picker:not(:first-child) select')){if(field!==select)field.disabled=true}}
+    }
     if(c.linkage){const row=this.picker(c.linkage,x=>this.set(c.linkage.entity_id,x));row.firstChild.textContent='Controller-Kopplung';details.append(row);if(/secondary/.test(s[c.linkage.entity_id]?.state||''))details.append(el('p','Slave-Betrieb: Die führende Pumpe kann Einstellungen vorgeben.','subtle'))}
     if(c.feed||c.timer||c.linkage)card.append(details);
     return card;
