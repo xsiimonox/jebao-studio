@@ -79,6 +79,36 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(RuntimeError):
             await make_device().set_device_attribute('SwitchON', True)
 
+    async def test_mode_preserves_neighbouring_power_and_linkage(self):
+        device = make_device(); device._connected = True
+        initial = bytearray(device.max_status_len)
+        initial[:4] = bytes.fromhex('00814b3d')  # on, primary, flow 75, frequency 61
+        device._apply_status_data(initial)
+        sent = []
+        async def send(cmd, response, seq, payload, timeout):
+            sent.append(payload[4:])
+            return b'\x00'
+        device._send_command_with_seq = send
+        for mode in range(4):
+            await device.set_device_attribute('Mode', mode)
+            self.assertEqual(sent[-1][1:9], bytes.fromhex('0000000000000020'))
+            self.assertEqual(sent[-1][9:13], bytes([0, 0x81 | (mode << 5), 75, 61]))
+
+    async def test_actual_socket_ack_rejection_reaches_caller(self):
+        device = make_device(); device._connected = True
+        class Writer:
+            def write(self, packet):
+                self.packet = packet
+            async def drain(self):
+                seq = device._sequence.to_bytes(4, 'big')
+                # Full controller status still says Flow=0, rejecting Flow=73.
+                await device._handle_incoming_packet(b'\x00\x94', seq + b'\x00' + bytes(device.max_status_len))
+        device.writer = Writer()
+        with self.assertRaisesRegex(ProtocolError, 'Flow'):
+            await device.set_device_attribute('Flow', 73)
+        self.assertTrue(device.writer.packet.startswith(b'\x00\x00\x00\x03'))
+        self.assertEqual(device.get_attribute('Flow'), 0)
+
     async def test_product_key_cannot_escape_models_directory(self):
         manager = DeviceManager(ROOT / 'custom_components/jebao_studio/models')
         for key in ('../manifest', '', 'A' * 32):

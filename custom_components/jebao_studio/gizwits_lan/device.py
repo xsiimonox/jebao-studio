@@ -76,6 +76,7 @@ class Device:
         self._pending_requests = {}
         self._sequence = 0
         self.current_status = None
+        self._raw_status_data = b""
 
         self.swapped_16 = need_swapped_16bits(self.all_attrs)
         # Big-endian group width; keep the historical 2-byte minimum so
@@ -309,13 +310,9 @@ class Device:
         flags_count = (max_id // 8) + 1
         attr_flags = bytearray(flags_count)
 
-        # A 0x93 command is a *partial* update.  Do not serialize the whole
-        # writable model here: MLW profiles contain calendar fields up to
-        # byte 400, while the official app writes the compact, 10-byte live
-        # control block.  The controllers accept the power bit at the start
-        # of an oversized frame but ignore Flow/Frequency farther into it.
-        # Keep the app's 10-byte minimum and grow only when the caller really
-        # addresses a later attribute (for example, a timer record).
+        # Keep the compact live block established by the app capture.
+        # Longer timer fields are included only when explicitly addressed.
+        # Numeric and mode app captures are still needed for hardware validation.
         requested_attrs = [
             a for name, a in {a["name"]: a for a in self.writable_attrs}.items()
             if name in updates
@@ -334,6 +331,12 @@ class Device:
         attr_values = bytearray(max_offset)
 
         name_map = {a["name"]: a for a in self.writable_attrs}
+        if not updates or any(name not in name_map for name in updates):
+            raise ValueError("Unknown or empty writable attribute selection")
+        # Preserve neighbouring packed fields (power, timer and linkage) in
+        # the transmitted block. Only the requested flags are enabled below.
+        preserved = self._raw_status_data[:len(attr_values)]
+        attr_values[:len(preserved)] = preserved
         for (k, v) in updates.items():
             if k not in name_map:
                 logger.warning("Ignoring attribute '%s' (not status_writable?).", k)
@@ -354,6 +357,10 @@ class Device:
         # value until a later unsolicited status packet arrived.
         if ack_payload and len(ack_payload) >= self.max_status_len:
             self._apply_status_data(ack_payload[-self.max_status_len:])
+            rejected = [name for name, requested in updates.items()
+                        if self.get_attribute(name) != requested]
+            if rejected:
+                raise ProtocolError("Controller did not confirm requested value for: " + ", ".join(rejected))
         return ack_payload
 
     def _apply_status_data(self, status_data: bytes) -> None:
@@ -362,6 +369,7 @@ class Device:
             logger.debug("Status payload len=%d < %d, ignoring", len(status_data), self.max_status_len)
             return
         self.current_status = DeviceStatus(self._unpack_status_data(status_data))
+        self._raw_status_data = bytes(status_data)
         logger.debug("Device status updated => %s", self.current_status)
         for callback in self._status_callbacks:
             try:
@@ -388,6 +396,8 @@ class Device:
                 val_int = 1 if str(user_value).lower() in ("1", "true") else 0
             else:
                 val_int = int(user_value)
+                if val_int != user_value or not 0 <= val_int < len(attr.get("enum", [])):
+                    raise ValueError("Invalid enum value for " + attr["name"])
             if unit == "bit":
                 if (bo == 0 and self.swapped_16):
                     set_swapped_bits(attr_values, bit_off, length_bits, val_int,
@@ -400,6 +410,9 @@ class Device:
                 attr_values[bo] = val_int & 0xFF
         elif dtype == "uint8":
             val = int(user_value)
+            spec = attr.get("uint_spec", {})
+            if val != user_value or not spec.get("min", 0) <= val <= spec.get("max", 255):
+                raise ValueError("Invalid numeric value for " + attr["name"])
             attr_values[bo] = val & 0xFF
         elif dtype == "binary":
             length_bytes = pos["len"] if unit == "byte" else (length_bits + 7) // 8
@@ -644,6 +657,7 @@ class Device:
                 return False
 
             status_data = resp[1:]  # Skip the p0 action byte
+            self._raw_status_data = bytes(status_data)
             logger.debug("Raw status bytes: %s", ' '.join(f'{b:02x}' for b in status_data))
             parsed_dict = self._unpack_status_data(status_data)
             self.current_status = DeviceStatus(parsed_dict)

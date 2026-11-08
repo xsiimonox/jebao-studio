@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.3.2
+
+- Gizwits-Steuerblock erhält Nachbarwerte; vollständige ACK-Antworten werden auf den angeforderten Wert geprüft.
+- Ungültige Zahlen und Moduswerte werden vor dem Senden abgelehnt.
+
 ## 0.3.1
 
 - Leistungs- und Modusentitäten aktualisieren ihre Home-Assistant-Anzeige nach bestätigtem LAN-Befehl sofort.
