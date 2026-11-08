@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.2.5
+
+- Gespeicherte Controller bleiben bei fehlender Laufzeiteinrichtung im Studio sichtbar.
+- Direkte Links zur Pumpensuche und zur Verwaltung bestehender Einträge im Panel.
+
 ## 0.2.4
 
 - Der Release-ZIP-Download ist entfernt: Die HACS-Installation nutzt wieder die einzeln erreichbaren Repository-Dateien.

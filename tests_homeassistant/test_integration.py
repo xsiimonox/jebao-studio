@@ -127,6 +127,18 @@ async def test_doser_creates_no_actuators(hass, transport):
     await integration.async_unload_entry(hass,config)
 
 
+async def test_catalog_keeps_saved_pumps_visible_before_runtime_setup(hass):
+    config = entry(hass)
+    connection = SimpleNamespace(user=SimpleNamespace(is_admin=True), send_result=Mock())
+    await inspect.unwrap(async_catalog)(hass, connection, {'id': 9})
+    catalog = connection.send_result.call_args.args[1]
+    assert len(catalog) == 1
+    assert catalog[0]['id'] == 'test-controller'
+    assert catalog[0]['configured_only'] is True
+    assert catalog[0]['available'] is False
+    assert catalog[0]['entities'] == []
+
+
 async def test_config_flow_menu_and_unreachable_manual_controller(hass):
     flow = ConfigFlow(); flow.hass = hass; flow.context = {'source':'user'}
     result = await flow.async_step_user()
@@ -155,7 +167,7 @@ async def test_actual_panel_registration_is_admin_only_and_idempotent(hass):
     panel = hass.data[frontend.DATA_PANELS]['jebao-studio']
     assert panel.require_admin is True
     assert panel.sidebar_title == 'Jebao Studio'
-    assert panel.config['_panel_custom']['module_url'].endswith('?v=0.2.4')
+    assert panel.config['_panel_custom']['module_url'].endswith('?v=0.2.5')
     hass.http.async_register_static_paths.assert_awaited_once()
     async_remove_studio_panel(hass)
     assert 'jebao-studio' not in hass.data[frontend.DATA_PANELS]

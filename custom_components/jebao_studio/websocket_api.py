@@ -66,7 +66,21 @@ async def async_catalog(hass, connection, msg):
                 "entities": [], "available": False,
             })
             continue
-        for device in (getattr(entry, "runtime_data", None) or []):
+        runtime_devices = getattr(entry, "runtime_data", None) or []
+        runtime_uids = {device.uid for device in runtime_devices}
+        for saved in entry.data.get("devices", []):
+            if not saved.get("uid") or saved["uid"] in runtime_uids:
+                continue
+            registered = devices.async_get_device_by_identifier((DOMAIN, saved["uid"]), entry.entry_id)
+            result.append({
+                "id": saved["uid"],
+                "name": ((registered.name_by_user or registered.name) if registered else None)
+                    or saved.get("name") or "Gespeicherte Jebao-Pumpe",
+                "kind": "unknown", "transport": entry.data.get(CONF_MODE, MODE_LOCAL),
+                "product_key": saved.get("product_key", ""), "available": False,
+                "entities": [], "configured_only": True,
+            })
+        for device in runtime_devices:
             registered = devices.async_get_device_by_identifier((DOMAIN, device.uid), entry.entry_id)
             entities = [
                 {"entity_id": entity.entity_id, "name": entity.name or entity.original_name or entity.entity_id}
