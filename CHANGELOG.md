@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.2.0
+
+- Neues Jebao-Studio-Logo und überarbeitete, auf Strömung ausgerichtete Oberfläche.
+- Permanente Pumpengruppen direkt in der Studio-Seitenleiste erstellen, bearbeiten und löschen.
+- Gemeinsame Ein/Aus-, Fütterungs-, Leistungs- und Modussteuerung für kompatible, erreichbare Pumpen.
+- Übersicht mit Online-Pumpen, gespeicherten Gruppen und Fehlerstatus.
+
 ## 0.1.0
 
 Erste öffentliche, experimentelle Version von Jebao Studio.

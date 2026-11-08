@@ -21,7 +21,7 @@ from .const import (
     PLATFORMS,
 )
 from .panel import async_register_studio_panel, async_remove_studio_panel
-from .websocket_api import async_register_websocket
+from .websocket_api import async_register_websocket, async_setup_groups
 
 from .hub import JebaoDevice, _load_device_configs, async_discover_devices
 
@@ -178,6 +178,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Register the authenticated Studio API once per HA session."""
+    await async_setup_groups(hass)
     async_register_websocket(hass)
     return True
 

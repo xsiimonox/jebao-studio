@@ -11,6 +11,8 @@ Voraussetzung: Home Assistant Core **2026.10.1 oder neuer**. Eine Einrichtung de
 5. **WLAN-Controller im Netzwerk suchen** oder die IP-Einrichtung wählen.
 6. **Jebao Studio** in der Seitenleiste öffnen. Die Seitenleiste ist für Administratoren sichtbar.
 
+Unter **Gruppen** können erreichbare Strömungspumpen dauerhaft zusammengefasst werden. Die Gruppensteuerung zeigt nur Aktionen an, die das jeweilige Controllerprofil unterstützt.
+
 Das Repository liefert `custom_components/jebao_studio` direkt aus. Der HACS-Standardkatalog ist nicht beantragt. Der nummerierte Release ist als experimentell dokumentiert und benötigt kein aktiviertes Beta-Repository.
 
 ## Manuell

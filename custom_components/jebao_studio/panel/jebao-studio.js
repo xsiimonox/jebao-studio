@@ -1,123 +1,52 @@
-import {command, offline, labels, groupDevices} from './model.js';
-const element = (tag, text, cls) => {
-  const node = document.createElement(tag);
-  if (text != null) node.textContent = text;
-  if (cls) node.className = cls;
-  return node;
-};
+import {command, offline, labels, groupDevices, controllable, controlsForGroup} from './model.js';
+
+const el = (tag, text, cls) => { const node = document.createElement(tag); if (text != null) node.textContent = text; if (cls) node.className = cls; return node; };
+const flowEntity = (device, kind, states) => device.entities.find(entity => {
+  const state = states[entity.entity_id];
+  if (!state || offline(state)) return false;
+  if (kind === 'power') return entity.entity_id.startsWith('switch.') && !/feed|fütter/i.test(state.attributes.friendly_name || entity.name);
+  if (kind === 'feed') return entity.entity_id.startsWith('switch.') && /feed|fütter/i.test(state.attributes.friendly_name || entity.name);
+  return entity.entity_id.startsWith(`${kind}.`);
+});
+
 class JebaoStudioPanel extends HTMLElement {
-  constructor() {
-    super(); this.attachShadow({mode:'open'}); this.devices = []; this.tab = 'flow';
-    this.loading = true; this.error = ''; this.busy = false; this.loaded = false;
+  constructor() { super(); this.attachShadow({mode:'open'}); this.devices=[]; this.groups=[]; this.tab='flow'; this.loading=true; this.busy=false; this.loaded=false; this.error=''; this.notice=''; this.editing=null; }
+  set hass(value) { this._hass=value; if (!this.loaded) { this.loaded=true; this.load(); } else if (!this.shadowRoot.activeElement?.matches('input,select')) this.render(); }
+  async load() { this.loading=true; this.error=''; this.render(); try { [this.devices,this.groups]=await Promise.all([this._hass.callWS({type:'jebao_studio/catalog'}),this._hass.callWS({type:'jebao_studio/groups'})]); } catch (err) { this.error=err.message||String(err); } finally { this.loading=false; this.render(); } }
+  btn(text, handler, cls='') { const b=el('button',text,cls); b.type='button'; b.disabled=this.busy; b.addEventListener('click',handler); return b; }
+  async call(id,value) { this.busy=true; this.error=''; this.render(); try { await this._hass.callService(...command(id,value,this._hass.states[id])); } catch(err) { this.error=err.message||String(err); } finally { this.busy=false; this.render(); } }
+  flowDevices() { return groupDevices(this.devices,'flow'); }
+  async groupCall(group, kind, value) {
+    const devices=this.flowDevices().filter(device=>group.device_ids.includes(device.id));
+    const ids=devices.map(device=>flowEntity(device,kind,this._hass.states)).filter(Boolean).map(entity=>entity.entity_id);
+    if (!ids.length) { this.error='Für diese Gruppe ist keine passende Steuerung verfügbar.'; this.render(); return; }
+    this.busy=true; this.error=''; this.render();
+    try { const [domain,service,data]=command(ids[0],value,this._hass.states[ids[0]]); data.entity_id=ids; await this._hass.callService(domain,service,data); this.notice=`${group.name}: ${ids.length} Pumpe${ids.length===1?'':'n'} aktualisiert.`; } catch(err) { this.error=err.message||String(err); } finally { this.busy=false; this.render(); }
   }
-  set hass(value) {
-    this._hass = value;
-    if (!this.loaded) { this.loaded = true; this.load(); }
-    else if (!this.shadowRoot.activeElement?.matches('input,select')) this.render();
+  async saveGroup() {
+    const name=this.shadowRoot.querySelector('#group-name').value;
+    const ids=[...this.shadowRoot.querySelectorAll('input[data-device-id]:checked')].map(input=>input.dataset.deviceId);
+    try { const saved=await this._hass.callWS({type:'jebao_studio/group_save',id:this.editing?.id,name,device_ids:ids}); const index=this.groups.findIndex(group=>group.id===saved.id); if(index>=0)this.groups.splice(index,1,saved);else this.groups.push(saved); this.notice=`Gruppe „${saved.name}“ gespeichert.`; this.editing=null; } catch(err) { this.error=err.message||String(err); } this.render();
   }
-  async load() {
-    this.loading = true; this.error = ''; this.render();
-    try { this.devices = await this._hass.callWS({type:'jebao_studio/catalog'}); }
-    catch (err) { this.error = err.message || String(err); }
-    finally { this.loading = false; this.render(); }
-  }
-  button(text, action, cls = '') {
-    const b = element('button', text, cls); b.type = 'button'; b.disabled = this.busy;
-    b.addEventListener('click', action); return b;
-  }
-  async change(id, value) {
-    this.busy = true; this.error = ''; this.render();
-    try { await this._hass.callService(...command(id, value, this._hass.states[id])); }
-    catch (err) { this.error = err.message || String(err); }
-    finally { this.busy = false; this.render(); }
-  }
-  async inspect(device) {
-    this.busy = true; this.error = ''; this.render();
-    try {
-      const report = await this._hass.callWS({type:'jebao_studio/ble_inspect', entry_id:device.id});
-      const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], {type:'application/json'}));
-      const a = element('a'); a.href = url; a.download = 'jebao-bluetooth-diagnose.json';
-      a.click(); setTimeout(() => URL.revokeObjectURL(url), 30000);
-      this.notice = `${report.services.length} GATT-Dienste erfasst. Diagnose wurde heruntergeladen.`;
-    } catch (err) { this.error = err.message || String(err); }
-    finally { this.busy = false; this.render(); }
-  }
+  async deleteGroup(group) { this.busy=true; this.render(); try { await this._hass.callWS({type:'jebao_studio/group_delete',id:group.id}); this.groups=this.groups.filter(item=>item.id!==group.id); this.notice=`Gruppe „${group.name}“ gelöscht.`; } catch(err) { this.error=err.message||String(err); } finally { this.busy=false; this.render(); } }
+  async inspect(device) { this.busy=true; this.error=''; this.render(); try { const report=await this._hass.callWS({type:'jebao_studio/ble_inspect',entry_id:device.id}); const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'})); const link=el('a'); link.href=url; link.download='jebao-bluetooth-diagnose.json'; link.click(); setTimeout(()=>URL.revokeObjectURL(url),30000); this.notice=`${report.services.length} GATT-Dienste erfasst.`; } catch(err) { this.error=err.message||String(err); } finally { this.busy=false; this.render(); } }
   entityRow(entity) {
-    const state = this._hass.states[entity.entity_id];
-    const row = element('div', null, 'row'); const desc = element('div');
-    desc.append(element('span', state?.attributes.friendly_name || entity.name, 'label'));
-    const domain = entity.entity_id.split('.')[0];
-    const unavailable = offline(state);
-    const disabled = unavailable || this.busy;
-    if (domain === 'number' && !unavailable) {
-      const input = element('input'); input.type = 'number';
-      input.min = state.attributes.min; input.max = state.attributes.max; input.step = state.attributes.step || 1;
-      input.value = state.state; input.disabled = disabled;
-      input.setAttribute('aria-label', state.attributes.friendly_name || entity.name);
-      input.addEventListener('change', () => this.change(entity.entity_id, input.valueAsNumber));
-      const wrap = element('div', null, 'numeric'); wrap.append(input, element('span', state.attributes.unit_of_measurement || ''));
-      row.append(desc, wrap);
-    } else if (domain === 'switch') {
-      const b = this.button(unavailable ? 'Nicht erreichbar' : state.state === 'on' ? 'Ein' : 'Aus', () => this.change(entity.entity_id, state.state !== 'on'), state?.state === 'on' ? 'toggle on' : 'toggle');
-      b.disabled = disabled; b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', String(state?.state === 'on'));
-      b.setAttribute('aria-label', state?.attributes.friendly_name || entity.name); row.append(desc, b);
-    } else if (domain === 'select') {
-      const select = element('select'); select.disabled = disabled;
-      select.setAttribute('aria-label', state?.attributes.friendly_name || entity.name);
-      for (const value of state?.attributes.options || []) { const option = element('option', labels[value] || value); option.value = value; option.selected = value === state.state; select.append(option); }
-      if (unavailable || !(state?.attributes.options || []).includes(state.state)) {
-        const option = element('option', '—'); option.selected = true; option.disabled = true; select.prepend(option);
-      }
-      select.addEventListener('change', () => this.change(entity.entity_id, select.value)); row.append(desc, select);
-    } else {
-      const value = unavailable ? '—' : domain === 'binary_sensor' ? (state.state === 'on' ? 'Aktiv' : 'OK') : `${state.state} ${state.attributes.unit_of_measurement || ''}`;
-      const reading = element('span', value, domain === 'binary_sensor' && state?.state === 'on' ? 'fault' : 'reading');
-      row.append(desc, reading);
-    }
+    const state=this._hass.states[entity.entity_id], name=state?.attributes.friendly_name||entity.name, domain=entity.entity_id.split('.')[0], unavailable=offline(state); const row=el('div',null,'row'); row.append(el('span',name,'label'));
+    if(domain==='number'&&!unavailable){const input=el('input');input.type='number';input.min=state.attributes.min;input.max=state.attributes.max;input.step=state.attributes.step||1;input.value=state.state;input.disabled=this.busy;input.setAttribute('aria-label',name);input.addEventListener('change',()=>this.call(entity.entity_id,input.valueAsNumber));row.append(input,el('small',state.attributes.unit_of_measurement||'%'));}
+    else if(domain==='switch'){const b=this.btn(unavailable?'Nicht erreichbar':state.state==='on'?'Ein':'Aus',()=>this.call(entity.entity_id,state.state!=='on'),state?.state==='on'?'on':'');b.disabled=this.busy||unavailable;b.setAttribute('role','switch');b.setAttribute('aria-checked',String(state?.state==='on'));row.append(b);}
+    else if(domain==='select'){const select=el('select');select.disabled=this.busy||unavailable;for(const value of state?.attributes.options||[]){const option=el('option',labels[value]||value);option.value=value;option.selected=value===state.state;select.append(option);}select.addEventListener('change',()=>this.call(entity.entity_id,select.value));row.append(select);}
+    else row.append(el('span',unavailable?'—':domain==='binary_sensor'?(state.state==='on'?'Aktiv':'OK'):state.state,'reading'));
     return row;
   }
-  deviceCard(device) {
-    const card = element('article', null, 'card');
-    const header = element('div', null, 'card-head'); header.append(element('h2', device.name));
-    const entities = device.entities.map(e => this._hass.states[e.entity_id]).filter(Boolean);
-    const available = entities.length ? entities.some(s => !offline(s)) : device.available;
-    header.append(element('span', device.transport === 'ble_probe' ? 'Vorbereitet' : available ? 'Verbunden' : 'Offline', available ? 'badge live' : 'badge'));
-    card.append(header, element('p', `${labels[device.kind] || device.kind} · ${labels[device.transport] || 'Bluetooth'}`, 'muted'));
-    if (device.transport === 'ble_probe') {
-      card.append(element('p', 'DMP-Steuerung noch nicht implementiert. Für den Treiber fehlen das bestätigte GATT-Protokoll und App-Mitschnitte.'));
-      card.append(element('p', 'Jebao Aqua schließen. Diese Abfrage erfasst nur Dienste und Eigenschaften; sie sendet keine Pumpenbefehle.', 'muted'));
-      card.append(this.button(this.busy ? 'Bitte warten …' : 'Bluetooth-Schnittstellen auslesen', () => this.inspect(device), 'primary'));
-    } else {
-      if (device.kind === 'doser') card.append(element('p', 'Dosierpumpen sind für die spätere Erweiterung vorbereitet. Manuelles Dosieren, Kalibrierung und Zeitplanänderungen sind noch nicht freigegeben.', 'note'));
-      for (const entity of device.entities) card.append(this.entityRow(entity));
-      if (!device.entities.length) card.append(element('p', 'Noch keine Entitäten verfügbar. Einrichtung und Produktprofil prüfen.', 'muted'));
-      const detail = element('details'); detail.append(element('summary', 'Controller-Profil'), element('code', device.product_key)); card.append(detail);
-    }
-    return card;
+  stat(value,label,cls='') { const node=el('div',null,'stat'); node.append(el('strong',value,cls),el('span',label)); return node; }
+  summary(){const devices=this.flowDevices(),online=devices.filter(device=>controllable(device,this._hass.states)).length,fault=devices.some(device=>device.entities.some(entity=>entity.entity_id.startsWith('binary_sensor.')&&this._hass.states[entity.entity_id]?.state==='on'));const grid=el('section',null,'stats');grid.append(this.stat(`${online}/${devices.length}`,'Pumpen online'),this.stat(String(this.groups.length),'Gespeicherte Gruppen'),this.stat(fault?'Prüfen':'OK','Systemstatus',fault?'bad':'good'));return grid;}
+  groupCard(group) {
+    const devices=this.flowDevices().filter(device=>group.device_ids.includes(device.id)), controls=controlsForGroup(devices,this._hass.states), card=el('article',null,'group-card'),head=el('div',null,'head'),copy=el('div'); copy.append(el('h2',group.name),el('p',`${devices.length} Pumpe${devices.length===1?'':'n'} · ${controls.online.length} erreichbar`,'muted'));head.append(copy,this.btn('Bearbeiten',()=>{this.editing=group;this.render();},'quiet'));card.append(head);const actions=el('div',null,'actions');if(controls.power){actions.append(this.btn('Alle ein',()=>this.groupCall(group,'power',true),'primary'),this.btn('Alle aus',()=>this.groupCall(group,'power',false)));}if(controls.feed)actions.append(this.btn('Fütterung',()=>this.groupCall(group,'feed',true)));card.append(actions);
+    if(controls.flow){const row=el('div',null,'range');row.append(el('label','Leistung'));const input=el('input');input.type='range';input.min=controls.flow.state.attributes.min;input.max=controls.flow.state.attributes.max;input.step=controls.flow.state.attributes.step||1;input.value=controls.flow.state.state;const output=el('output',`${input.value}%`);input.addEventListener('input',()=>output.value=`${input.value}%`);input.addEventListener('change',()=>this.groupCall(group,'number',input.valueAsNumber));row.append(input,output);card.append(row);}
+    if(controls.mode){const row=el('div',null,'range');row.append(el('label','Modus'));const select=el('select');for(const value of controls.mode.state.attributes.options||[]){const option=el('option',labels[value]||value);option.value=value;select.append(option);}select.value=controls.mode.state.state;select.addEventListener('change',()=>this.groupCall(group,'select',select.value));row.append(select);card.append(row);}return card;
   }
-  render() {
-    if (!this._hass) return;
-    const root = this.shadowRoot; root.replaceChildren();
-    const style = element('style'); style.textContent = `
-      :host{display:block;min-height:100vh;background:var(--primary-background-color,#f4f7fa);color:var(--primary-text-color,#17324a);font-family:var(--paper-font-body1_-_font-family,system-ui);--accent:#087e8b}
-      *{box-sizing:border-box}header{display:flex;align-items:center;gap:12px;padding:16px 24px;background:var(--card-background-color,#fff);border-bottom:1px solid var(--divider-color,#dde5ec)}header strong{font-size:18px;flex:1}ha-menu-button{display:block}main{max-width:1120px;padding:40px 24px 80px;margin:auto}.eyebrow{font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);font-weight:700}h1{font-size:clamp(30px,5vw,46px);letter-spacing:-.04em;margin:10px 0}h2{font-size:20px;margin:0}.intro{max-width:650px;line-height:1.6}.muted{color:var(--secondary-text-color,#677b8c);font-size:14px;line-height:1.6}nav{display:flex;gap:8px;margin:28px 0;flex-wrap:wrap}button,select,input{font:inherit;color:inherit;border:1px solid var(--divider-color,#d5dfe5);border-radius:10px;background:var(--card-background-color,#fff);padding:10px 14px}button{cursor:pointer}button:disabled,select:disabled,input:disabled{opacity:.5;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #20b5ba;outline-offset:3px}.selected,.primary{background:var(--accent);border-color:var(--accent);color:white}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:20px}.card{background:var(--card-background-color,#fff);padding:24px;border:1px solid var(--divider-color,#dde5ec);border-radius:20px;box-shadow:0 8px 24px #13364d05}.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.badge{font-size:12px;white-space:nowrap;padding:6px 10px;border-radius:20px;background:var(--secondary-background-color,#edf2f5)}.live{background:#087e8b18;color:var(--accent)}.row{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:16px 0;border-bottom:1px solid var(--divider-color,#eaf0f4)}.label{font-size:14px}.numeric{display:flex;align-items:center;gap:8px}input{width:95px}select{max-width:55%}.toggle{min-width:75px}.toggle.on{background:var(--accent);color:white}.fault,.error{color:var(--error-color,#b5263b)}.error,.note,.notice{border-radius:12px;padding:16px;background:var(--secondary-background-color,#eaf2f5);line-height:1.6;margin-bottom:20px}details{margin-top:20px;color:var(--secondary-text-color,#677b8c);font-size:12px}summary{cursor:pointer;margin-bottom:10px}code{overflow-wrap:anywhere}.empty{padding:40px;text-align:center;border:1px dashed var(--divider-color,#beced8);border-radius:20px}a{color:var(--accent)}footer{margin-top:28px;font-size:12px;color:var(--secondary-text-color,#677b8c)}@media(max-width:600px){main{padding:24px 16px}.card{padding:18px}header{padding:12px 16px}.row{gap:10px}}
-    `; root.append(style);
-    const header = element('header'); const menu = element('ha-menu-button'); menu.hass = this._hass;
-    header.append(menu, element('strong', 'Jebao Studio'), this.button('Aktualisieren', () => this.load())); root.append(header);
-    const main = element('main'); main.append(element('div', 'Dein Aquarium · Deine Strömung', 'eyebrow'), element('h1', 'Wasser in Bewegung.'), element('p', 'Pumpen, Wellenmodi und Controller an einem Ort. Die verfügbaren Regler richten sich nach dem erkannten Controller-Profil.', 'intro muted'));
-    const nav = element('nav'); nav.setAttribute('aria-label', 'Geräteart');
-    for (const [id, name] of [['flow','Strömung & Pumpen'],['dosing','Dosierung'],['ble','Bluetooth / DMP']]) {
-      const b = this.button(name, () => {this.tab=id;this.render();}, this.tab === id ? 'selected' : ''); b.setAttribute('aria-pressed',String(this.tab===id)); nav.append(b);
-    } main.append(nav);
-    if (this.error) { const error = element('div',this.error,'error'); error.setAttribute('role','alert');main.append(error); }
-    if (this.notice) { const notice = element('div',this.notice,'notice'); notice.setAttribute('role','status');main.append(notice); }
-    const shown = groupDevices(this.devices,this.tab);
-    if (this.loading) main.append(element('p','Controller werden geladen …','muted'));
-    else if (!shown.length) {
-      const empty=element('div',null,'empty');empty.append(element('h2','Noch kein Controller in dieser Ansicht'),element('p',this.tab==='ble'?'DMP über „Bluetooth-Diagnose“ in der Integration hinzufügen. Die Steuerung wird nach Protokollprüfung ergänzt.':'Füge deine Jebao-Controller unter Geräte & Dienste hinzu.'));
-      const a=element('a','Integration einrichten');a.href='/config/integrations/dashboard/add?domain=jebao_studio';empty.append(a);main.append(empty);
-    } else {const grid=element('div',null,'grid');for (const device of shown)grid.append(this.deviceCard(device));main.append(grid);}
-    main.append(element('footer','Jebao Studio 0.1.0 · Experimentell · Hardwareprüfung steht aus')); root.append(main);
-  }
+  editor(){const group=this.editing,section=el('section',null,'editor');section.append(el('div','GRUPPE KONFIGURIEREN','eyebrow'),el('h2',group?.id?'Gruppe bearbeiten':'Neue Pumpengruppe'));const input=el('input');input.id='group-name';input.placeholder='z. B. Riffkante';input.value=group?.name||'';section.append(input);const selected=new Set(group?.device_ids||[]);for(const device of this.flowDevices()){const row=el('label',null,'check'),check=el('input');check.type='checkbox';check.dataset.deviceId=device.id;check.checked=selected.has(device.id);check.disabled=!controllable(device,this._hass.states);row.append(check,el('span',device.name),el('small',check.disabled?'nicht erreichbar':'erreichbar'));section.append(row);}const actions=el('div',null,'actions');actions.append(this.btn('Speichern',()=>this.saveGroup(),'primary'),this.btn('Abbrechen',()=>{this.editing=null;this.render();}));if(group?.id)actions.append(this.btn('Löschen',()=>this.deleteGroup(group),'danger'));section.append(actions);return section;}
+  deviceCard(device){const card=el('article',null,'card'),head=el('div',null,'head'),online=device.entities.some(entity=>!offline(this._hass.states[entity.entity_id]));head.append(el('h2',device.name),el('span',online?'Verbunden':'Offline',online?'badge live':'badge'));card.append(head,el('p',`${labels[device.kind]||device.kind} · ${labels[device.transport]||'Bluetooth'}`,'muted'));if(device.transport==='ble_probe')card.append(el('p','DMP-Steuerung noch nicht implementiert. Die Diagnose liest ausschließlich Schnittstelleninformationen.','note'),this.btn('Bluetooth-Schnittstellen auslesen',()=>this.inspect(device),'primary'));else for(const entity of device.entities)card.append(this.entityRow(entity));return card;}
+  render(){if(!this._hass)return;const root=this.shadowRoot;root.replaceChildren();const style=el('style');style.textContent=`:host{display:block;min-height:100vh;background:#f4f8fa;color:#142d42;font-family:var(--paper-font-body1_-_font-family,system-ui);--a:#007f88;--line:#dbe7eb}*{box-sizing:border-box}header{display:flex;align-items:center;gap:12px;padding:12px 24px;background:#fff;border-bottom:1px solid var(--line)}.brand{display:flex;align-items:center;gap:10px;flex:1}.brand img{width:34px;height:34px}header strong{font-size:18px}main{max-width:1180px;padding:36px 24px 80px;margin:auto}.hero{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:end}.eyebrow{font-size:11px;letter-spacing:.14em;color:var(--a);font-weight:800}h1{font-size:clamp(32px,5vw,52px);letter-spacing:-.05em;margin:8px 0}h2{font-size:20px;margin:0}.intro,.muted{color:#647987;line-height:1.55}.intro{max-width:650px}nav,.actions{display:flex;gap:8px;flex-wrap:wrap}nav{margin:28px 0 18px}button,select,input{font:inherit;color:inherit;border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px 14px}button{cursor:pointer;font-weight:650}button:disabled,input:disabled,select:disabled{opacity:.48;cursor:not-allowed}.selected,.primary,.on{background:var(--a);color:#fff;border-color:var(--a)}.quiet{padding:8px 10px}.danger{color:#a1283c}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0 26px}.stat,.card,.group-card,.editor{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px}.stat strong{display:block;font-size:25px}.stat span{color:#647987;font-size:13px}.good{color:var(--a)}.bad,.error{color:#a1283c}.grid,.group-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,350px),1fr));gap:16px}.group-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr))}.head{display:flex;justify-content:space-between;gap:12px;align-items:start}.badge{font-size:12px;padding:6px 9px;border-radius:999px;background:#edf2f4}.live{background:#e3f5f2;color:var(--a)}.row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #edf2f4}.label{font-size:14px}.row input{width:88px}.range{display:grid;grid-template-columns:145px 1fr auto;gap:12px;align-items:center;border-top:1px solid #edf2f4;margin-top:16px;padding-top:16px}.range input[type=range]{padding:0;accent-color:var(--a)}.editor{max-width:650px;margin-bottom:20px}.editor h2{margin:6px 0 16px}.editor>#group-name{display:block;width:100%;margin-bottom:12px}.check{display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:11px 0;border-top:1px solid #edf2f4}.check input{width:18px;height:18px;padding:0;accent-color:var(--a)}.check small{color:#647987}.note,.error,.notice{border-radius:12px;padding:14px;line-height:1.55;margin:14px 0}.note{background:#f3f7f8}.error{background:#fff0f2}.notice{background:#e7f6f3;color:#075e62}.empty{padding:42px;text-align:center;border:1px dashed #b8cbd2;border-radius:18px;background:#fff}footer{margin-top:28px;color:#647987;font-size:12px}@media(max-width:680px){main{padding:24px 16px}.hero{grid-template-columns:1fr}.stats{grid-template-columns:1fr}.range{grid-template-columns:1fr}.check{grid-template-columns:24px 1fr}.check small{grid-column:2}}`;root.append(style);const header=el('header'),menu=el('ha-menu-button');menu.hass=this._hass;const brand=el('div',null,'brand'),logo=el('img');logo.src='/jebao_studio_panel/brand-logo.png';logo.alt='';brand.append(logo,el('strong','Jebao Studio'));header.append(menu,brand,this.btn('Aktualisieren',()=>this.load()));root.append(header);const main=el('main'),hero=el('div',null,'hero'),copy=el('div');copy.append(el('div','Strömung orchestrieren','eyebrow'),el('h1','Dein Riff, in Balance.'),el('p','Steuere jede Pumpe einzeln oder fasse sie zu klaren Gruppen zusammen. Änderungen erreichen nur kompatible Controller.','intro'));hero.append(copy);main.append(hero);if(this.error)main.append(el('div',this.error,'error'));if(this.notice)main.append(el('div',this.notice,'notice'));const nav=el('nav');for(const [id,name] of [['flow','Pumpen'],['groups','Gruppen'],['dosing','Dosierung'],['ble','Bluetooth / DMP']]){const button=this.btn(name,()=>{this.tab=id;this.editing=null;this.render();},this.tab===id?'selected':'');button.setAttribute('aria-pressed',String(this.tab===id));nav.append(button);}main.append(nav);if(this.loading)main.append(el('p','Controller werden geladen …','muted'));else if(this.tab==='groups'){main.append(this.summary());if(this.editing)main.append(this.editor());else main.append(this.btn('+ Neue Gruppe',()=>{this.editing={};this.render();},'primary'));const grid=el('div',null,'group-grid');for(const group of this.groups)grid.append(this.groupCard(group));if(!this.groups.length&&!this.editing)grid.append(el('div','Lege eine Gruppe an, um mehrere Strömungspumpen gemeinsam zu steuern.','empty'));main.append(grid);}else{const shown=groupDevices(this.devices,this.tab);if(!shown.length)main.append(el('div','Noch kein Controller in dieser Ansicht.','empty'));else{const grid=el('div',null,'grid');for(const device of shown)grid.append(this.deviceCard(device));main.append(grid);}}main.append(el('footer','Jebao Studio 0.2.0 · Gruppen bleiben lokal in Home Assistant gespeichert.'));root.append(main);}
 }
-customElements.define('jebao-studio-panel', JebaoStudioPanel);
+customElements.define('jebao-studio-panel',JebaoStudioPanel);

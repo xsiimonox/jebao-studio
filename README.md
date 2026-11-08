@@ -1,10 +1,16 @@
 # Jebao Studio
 
-Home-Assistant-Integration mit eigener Seitenleiste für Jebao/Jecod-Pumpen aus der **Jebao Aqua App**. Schwerpunkt: Strömungspumpen, insbesondere MLW über WLAN. Version **0.1.0, experimentell**.
+Home-Assistant-Integration mit eigener Seitenleiste für Jebao/Jecod-Pumpen aus der **Jebao Aqua App**. Schwerpunkt: Strömungspumpen, insbesondere MLW über WLAN. Version **0.2.0, experimentell**.
+
+<p align="center"><img src="custom_components/jebao_studio/brand-logo.png" alt="Jebao Studio Logo" width="180"></p>
 
 **Aktueller Stand:** WLAN-Steuerung und Studio-Oberfläche sind implementiert und offline geprüft. Native Entitäten, Service-Aufrufe, Statusaktualisierungen und Entladen sind unter Home Assistant 2026.10.1 und 2026.10.4 mit simulierten Geräten geprüft. Der Hardwaretest steht aus. **DMP über reines Bluetooth lässt sich noch nicht steuern.** Dafür gibt es eine Einrichtung zur Schnittstellendiagnose. Dosierpumpen sind für die Erweiterung vorbereitet; ihre Steuerung ist gesperrt.
 
 ![Jebao Studio mit Beispieldaten](docs/studio-preview.png)
+
+## Pumpen-Gruppen
+
+Im Reiter **Gruppen** lassen sich erreichbare Strömungspumpen dauerhaft zu einer Gruppe zusammenfassen. Für jede Gruppe sind Ein/Aus, Fütterung, gemeinsame Leistung und Wellenmodus verfügbar, sofern die jeweiligen Controller diese Funktion unterstützen. Die Gruppen werden lokal in Home Assistant gespeichert; eine Gruppenaktion überspringt nicht erreichbare oder nicht kompatible Pumpen.
 
 ## Funktionen
 

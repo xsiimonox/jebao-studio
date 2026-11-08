@@ -31,8 +31,16 @@ class StudioTests(unittest.IsolatedAsyncioTestCase):
         panel.assert_awaited_once(); local.assert_not_awaited(); cloud.assert_not_awaited()
 
     async def test_websocket_handlers_reject_non_admin_before_accessing_devices(self):
+        def require_admin(connection, msg):
+            if connection.user.is_admin:
+                return True
+            connection.send_error(msg['id'], 'unauthorized', 'Administratorrechte erforderlich.')
+            return False
         for name in ('async_catalog','async_ble_inspect'):
-            handler = load_function('websocket_api.py',name,{})
+            handler = load_function(
+                'websocket_api.py', name,
+                {'_require_admin': require_admin},
+            )
             connection = SimpleNamespace(user=SimpleNamespace(is_admin=False), send_error=Mock())
             await handler(None,connection,{'id':42})
             connection.send_error.assert_called_once_with(42,'unauthorized','Administratorrechte erforderlich.')

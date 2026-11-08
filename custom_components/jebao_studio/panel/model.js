@@ -23,3 +23,20 @@ export function groupDevices(devices, tab) {
   return devices.filter(d => tab === 'ble' ? d.transport === 'ble_probe' :
     tab === 'dosing' ? d.kind === 'doser' : d.kind !== 'doser' && d.transport !== 'ble_probe');
 }
+
+export function controllable(device, states) {
+  return device.entities.some(entity => !offline(states[entity.entity_id]) && ['number', 'switch', 'select'].includes(entity.entity_id.split('.')[0]));
+}
+
+export function controlsForGroup(devices, states) {
+  const online = devices.filter(device => controllable(device, states));
+  const entities = online.flatMap(device => device.entities.map(entity => ({...entity, state:states[entity.entity_id], device}))).filter(item => item.state);
+  const first = prefix => entities.find(item => item.entity_id.startsWith(prefix));
+  return {
+    online,
+    power: entities.find(item => item.entity_id.startsWith('switch.') && !/feed|fütter/i.test(item.state.attributes.friendly_name || item.name)),
+    feed: entities.find(item => item.entity_id.startsWith('switch.') && /feed|fütter/i.test(item.state.attributes.friendly_name || item.name)),
+    flow: first('number.'),
+    mode: first('select.'),
+  };
+}

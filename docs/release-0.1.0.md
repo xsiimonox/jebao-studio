@@ -1,4 +1,4 @@
-Jebao Studio 0.1.0 ist die erste öffentliche, experimentelle Version der Home-Assistant-Integration mit eigener Studio-Seitenleiste.
+Jebao Studio 0.1.0 ist die erste öffentliche, experimentelle Version der Home-Assistant-Integration.
 
 Enthalten sind lokale WLAN-Steuerung für bekannte Jebao-Aqua-Controllerprofile, optionale Cloud-Steuerung, native HA-Entitäten, deutsche Einrichtung, Diagnoseexporte und eine erweiterbare Produktprofilbasis. Der WLAN-Unterbau basiert auf dem MIT-lizenzierten Projekt von chrisc123; Lizenzen und Herkunft sind im Repository dokumentiert.
 
