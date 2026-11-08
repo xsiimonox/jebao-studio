@@ -83,7 +83,8 @@ async def async_catalog(hass, connection, msg):
         for device in runtime_devices:
             registered = devices.async_get_device_by_identifier((DOMAIN, device.uid), entry.entry_id)
             entities = [
-                {"entity_id": entity.entity_id, "name": entity.name or entity.original_name or entity.entity_id}
+                {"entity_id": entity.entity_id, "name": entity.name or entity.original_name or entity.entity_id,
+                 "attribute": entity.unique_id.removeprefix(f"{device.uid}_").rsplit("_", 1)[0]}
                 for entity in er.async_entries_for_config_entry(registry, entry.entry_id)
                 if registered and entity.device_id == registered.id and not entity.disabled
             ]
@@ -169,7 +170,10 @@ async def async_save_group(hass, connection, msg):
         connection.send_error(msg["id"], "invalid_group", "Eine ausgewählte Pumpe ist nicht verfügbar.")
         return
     group_id = msg.get("id") or re.sub(r"[^a-z0-9_-]", "", name.casefold().replace(" ", "-"))[:48] or "gruppe"
-    groups = [group for group in hass.data[DOMAIN].get("groups", []) if group.get("id") != group_id]
+    if msg.get("id") and not any(group.get("id") == group_id for group in hass.data[DOMAIN].get("groups", [])):
+        connection.send_error(msg["id"], "invalid_group", "Die bearbeitete Gruppe existiert nicht mehr.")
+        return
+    groups = [group for group in hass.data[DOMAIN].get("groups", []) if not msg.get("id") or group.get("id") != group_id]
     base, suffix = group_id, 2
     used_ids = {group.get("id") for group in groups}
     while group_id in used_ids:

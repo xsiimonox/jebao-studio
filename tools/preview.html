@@ -6,6 +6,9 @@ const states={
  'number.mlw_frequency':{state:'55',attributes:{friendly_name:'Wellenfrequenz',min:0,max:100,step:1}},
  'select.mlw_mode':{state:'sine_wave',attributes:{friendly_name:'Wellenmodus',options:['constant_flow','sine_wave','random_wave','square_wave']}},
  'switch.mlw_feed':{state:'off',attributes:{friendly_name:'Fütterung'}},
+ 'number.mlw_feedtime':{state:'10',attributes:{friendly_name:'Fütterungsdauer',min:1,max:60,step:1,unit_of_measurement:'min'}},
+ 'switch.mlw_timeron':{state:'on',attributes:{friendly_name:'Zeitplan'}},
+ 'select.mlw_linkage':{state:'independent',attributes:{friendly_name:'Kopplung',options:['independent','primary','secondary']}},
  'binary_sensor.mlw_fault':{state:'off',attributes:{friendly_name:'Rotor blockiert'}},
  'switch.mlw_right_power':{state:'on',attributes:{friendly_name:'Pumpe'}},
  'number.mlw_right_flow':{state:'52',attributes:{friendly_name:'Strömungsleistung',min:30,max:100,step:1,unit_of_measurement:'%'}},
@@ -13,7 +16,7 @@ const states={
  'switch.mlw_right_feed':{state:'off',attributes:{friendly_name:'Fütterung'}},
 };
 const panel=document.querySelector('jebao-studio-panel');
-const left=['switch.mlw_power','number.mlw_flow','number.mlw_frequency','select.mlw_mode','switch.mlw_feed','binary_sensor.mlw_fault'];
+const left=['switch.mlw_power','number.mlw_flow','number.mlw_frequency','select.mlw_mode','switch.mlw_feed','number.mlw_feedtime','switch.mlw_timeron','select.mlw_linkage','binary_sensor.mlw_fault'];
 const right=['switch.mlw_right_power','number.mlw_right_flow','select.mlw_right_mode','switch.mlw_right_feed'];
 const catalog=[{id:'demo-mlw-left',name:'MLW · Riff links',kind:'wavemaker',transport:'local',product_key:'1d8c63eaccac4205b92c84d77d5a08fb',available:true,entities:left.map(entity_id=>({entity_id}))},{id:'demo-mlw-right',name:'MLW · Riff rechts',kind:'wavemaker',transport:'local',product_key:'54114ccdac1e41c0bb17e222887c07ba',available:true,entities:right.map(entity_id=>({entity_id}))},{id:'demo-dmp',name:'DMP · Riff rechts',kind:'bluetooth',transport:'ble_probe',entities:[]},{id:'demo-doser',name:'Dosierung · Vorbereitung',kind:'doser',transport:'local',product_key:'25c5b146791f465bbefdbfd312b9e8ea',available:false,entities:[]}];
 let groups=[{id:'riff',name:'Riffströmung',device_ids:['demo-mlw-left','demo-mlw-right']}];

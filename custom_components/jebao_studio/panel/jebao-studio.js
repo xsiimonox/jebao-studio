@@ -1,16 +1,10 @@
-import {command, offline, labels, groupDevices, controllable} from './model.js?v=0.3.0';
+import {command, offline, labels, groupDevices, controllable, controlsForDevice} from './model.js?v=0.4.0';
 
 const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!=null)n.textContent=text;if(cls)n.className=cls;return n};
 const n=value=>Math.max(0,Math.min(100,Number(value)||0));
 const entityName=e=>(e.entity_id+' '+(e.name||'')).toLowerCase();
 const find=(d,s,pattern,prefix='')=>d.entities.find(e=>s[e.entity_id]&&!offline(s[e.entity_id])&&(!prefix||e.entity_id.startsWith(prefix))&&pattern.test(entityName(e)));
-const controls=(d,s)=>({
-  power:find(d,s,/switchon|power|ein.?aus|schalter/,'switch.')||d.entities.find(e=>e.entity_id.startsWith('switch.')&&!/feed|fütter/.test(entityName(e))&&!offline(s[e.entity_id])),
-  feed:find(d,s,/feed|fütter/,'switch.'),
-  intensity:find(d,s,/flow|leistung|intensit/,'number.'),
-  frequency:find(d,s,/frequency|frequenz|puls/,'number.'),
-  mode:find(d,s,/mode|modus/,'select.')
-});
+const controls=controlsForDevice;
 const value=(e,s)=>e?(Number(s[e.entity_id]?.state)||0):0;
 const constant=mode=>/constant|konstant|恒流/i.test(String(mode||''));
 
@@ -18,14 +12,65 @@ class JebaoStudioPanel extends HTMLElement {
   constructor(){super();this.attachShadow({mode:'open'});this.devices=[];this.groups=[];this.tab='pumps';this.loading=true;this.busy=false;this.loaded=false;this.error='';this.notice='';this.editing=null}
   set hass(hass){this._hass=hass;if(!this.loaded){this.loaded=true;this.load()}else this.render()}
   // Preserve the actual DOM throughout pointer/touch/keyboard edits and writes.
-  connectedCallback(){if(this._renderGuardInstalled)return;this._renderGuardInstalled=true;this._drafts=new Map();this._interacting=false;const draw=this.render.bind(this);this.render=()=>{if(!this._interacting&&!this.busy&&!this.shadowRoot.activeElement?.matches('input,select'))draw()}}
+  connectedCallback(){if(this._renderGuardInstalled)return;this._renderGuardInstalled=true;this._drafts=new Map();this._interacting=false;const draw=this.render.bind(this);this.render=()=>{if(!this._interacting&&!this.busy&&!this.shadowRoot.activeElement?.matches('input,select')){draw();this.decorate()}};const card=this.card.bind(this);this.card=device=>this.enhanceCard(card(device),device);const groupCard=this.groupCard.bind(this);this.groupCard=group=>this.enhanceGroup(groupCard(group),group)}
+  decorate(){
+    const root=this.shadowRoot;
+    const footer=root.querySelector?.('footer');if(footer)footer.textContent='Jebao Studio 0.4.0 · Lokale Controllersteuerung';
+    for(const wave of root.querySelectorAll?.('.wave')||[])wave.setAttribute('aria-label','Schematische Modusdarstellung, keine Messung des Wasserflusses');
+    const summary=root.querySelector?.('.summary');if(summary){const label=summary.querySelector('.eyebrow');if(label)label.textContent='MITTLERE EINGESTELLTE LEISTUNG';summary.append(el('small','Wellenbilder sind schematische Vorschauen.','wave-note'))}
+    const style=el('style');style.textContent='details{margin-top:18px;border-top:1px solid var(--line);padding-top:14px}summary{cursor:pointer;font-size:14px;font-weight:600}details .secondary{margin-top:10px}.wave-note{position:absolute;bottom:9px;left:24px;font-size:10px;opacity:.8}button{min-height:44px}button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #007aff;outline-offset:3px}input[type=range]{touch-action:pan-y}input:disabled{opacity:.5}.card h2{overflow-wrap:anywhere}.control-label{gap:10px;align-items:center}.summary>div:not(.wave){z-index:1}.summary .wave{pointer-events:none}';root.append(style);
+  }
+  enhanceGroup(card,group){
+    const states=this._hass.states,sets=this.pumps().filter(d=>group.device_ids.includes(d.id)).map(d=>controls(d,states));
+    const modes=sets.filter(c=>c.mode).map(c=>states[c.mode.entity_id]);
+    const select=card.querySelector('select');
+    card.querySelector('.eyebrow').textContent='GEMEINSAME STEUERUNG';
+    card.querySelector('.subtle').textContent=sets.filter(c=>Object.values(c).some(Boolean)).length+' erreichbar · '+group.device_ids.length+' gespeichert';
+    if(modes.length>1&&constant(modes[0].state)&&modes.some(s=>!constant(s.state))){const frequency=sets.find(c=>c.frequency)?.frequency;if(frequency)card.querySelector('.control-area').append(this.slider(frequency,'Gemeinsame Frequenz',x=>this.setGroup(group,'frequency',x)))}
+    if(select&&modes.length){for(const option of [...select.options])if(!modes.every(s=>s.attributes.options?.includes(option.value)))option.remove();if(new Set(modes.map(s=>s.state)).size>1){const mixed=el('option','Unterschiedliche Modi');mixed.value='';mixed.disabled=true;mixed.selected=true;select.prepend(mixed);card.append(el('p','Die Pumpen haben unterschiedliche Modi. Eine Auswahl stellt den gemeinsamen Modus ein.','subtle'))}}
+    const levels=sets.filter(c=>c.intensity).map(c=>value(c.intensity,states));
+    if(new Set(levels).size>1)card.append(el('p','Leistungsbereich der Pumpen: '+Math.min(...levels)+'–'+Math.max(...levels)+' %. Der Gruppenregler setzt einen gemeinsamen Wert.','subtle'));
+    return card;
+  }
+  enhanceCard(card,device){
+    const c=controls(device,this._hass.states),s=this._hass.states;
+    const faults=device.entities.filter(e=>e.entity_id.startsWith('binary_sensor.')&&s[e.entity_id]?.state==='on');
+    for(const fault of faults)card.append(el('p','⚠ '+(s[fault.entity_id]?.attributes.friendly_name||fault.name),'error'));
+    const details=el('details'),summary=el('summary','Fütterung & Controller');details.append(summary);
+    if(c.feed){
+      const feeding=s[c.feed.entity_id]?.state==='on';
+      details.append(el('p',feeding?'Fütterungspause aktiv':'Normalbetrieb','subtle'));
+      // Replace the old unconditional feed-on action with a reversible control.
+      const button=[...card.querySelectorAll('button')].find(b=>b.textContent==='Fütterungspause');
+      if(button){button.textContent=feeding?'Fütterung beenden':'Fütterungspause';button.onclick=()=>this.set(c.feed.entity_id,!feeding)}
+    }
+    if(c.feedTime)details.append(this.slider(c.feedTime,'Fütterungsdauer',x=>this.set(c.feedTime.entity_id,x),'min'));
+    if(c.timer){const active=s[c.timer.entity_id]?.state==='on';details.append(el('p',active?'Zeitplan aktiv: Automatik kann manuelle Werte überschreiben.':'Zeitplan ausgeschaltet.','subtle'),this.button(active?'Zeitplan ausschalten':'Zeitplan einschalten',()=>this.set(c.timer.entity_id,!active),'secondary'))}
+    if(c.linkage){const row=this.picker(c.linkage,x=>this.set(c.linkage.entity_id,x));row.firstChild.textContent='Controller-Kopplung';details.append(row);if(/secondary/.test(s[c.linkage.entity_id]?.state||''))details.append(el('p','Slave-Betrieb: Die führende Pumpe kann Einstellungen vorgeben.','subtle'))}
+    if(c.feed||c.timer||c.linkage)card.append(details);
+    return card;
+  }
   async load(){this.loading=true;this.error='';this.notice='';this.render();try{this.devices=await this._hass.callWS({type:'jebao_studio/catalog'})||[]}catch(e){this.error='Pumpen konnten nicht geladen werden: '+(e.message||e)}finally{this.loading=false;this.render()}try{this.groups=await this._hass.callWS({type:'jebao_studio/groups'})||[]}catch(e){this.notice='Gruppen sind momentan nicht verfügbar: '+(e.message||e)}this.render()}
   button(text,fn,cls=''){const b=el('button',text,cls);b.type='button';b.disabled=this.busy;b.onclick=fn;return b}
   pumps(){return groupDevices(this.devices,'flow')}
-  async set(id,next){this.busy=true;this.error='';this.render();try{await this._hass.callService(...command(id,next,this._hass.states[id]))}catch(e){this.error=e.message||String(e)}finally{this.busy=false;this.render()}}
-  async setGroup(group,key,next){const ids=this.pumps().filter(d=>group.device_ids.includes(d.id)).map(d=>controls(d,this._hass.states)[key]).filter(Boolean).map(e=>e.entity_id);if(!ids.length){this.error='Keine erreichbare Pumpe mit dieser Steuerung in der Gruppe.';this.render();return}this.busy=true;this.render();try{const [domain,service,data]=command(ids[0],next,this._hass.states[ids[0]]);data.entity_id=ids;await this._hass.callService(domain,service,data);this.notice=group.name+': '+ids.length+' Pumpe'+(ids.length===1?'':'n')+' aktualisiert.'}catch(e){this.error=e.message||String(e)}finally{this.busy=false;this.render()}}
+  async set(id,next){if(this.busy)throw new Error('Bitte den laufenden Befehl abwarten.');this.busy=true;this.error='';try{await this._hass.callService(...command(id,next,this._hass.states[id]))}catch(e){this.error=e.message||String(e)}finally{this.busy=false;this.render()}}
+  async setGroup(group,key,next){
+    if(this.busy)return;
+    const members=this.pumps().filter(d=>group.device_ids.includes(d.id));
+    const targets=members.map(d=>controls(d,this._hass.states)[key]).filter(Boolean);
+    const calls=[];
+    // Validate every member before sending: different profiles may have different ranges/options.
+    try{for(const e of targets)calls.push(command(e.entity_id,next,this._hass.states[e.entity_id]))}catch(e){this.error='Gruppe nicht geändert: '+e.message;this.render();return}
+    if(!calls.length){this.error='Keine erreichbare Pumpe mit dieser Steuerung in der Gruppe.';this.render();return}
+    this.busy=true;this.error='';
+    const results=await Promise.allSettled(calls.map(args=>Promise.resolve().then(()=>this._hass.callService(...args))));
+    const failed=results.filter(r=>r.status==='rejected');
+    this.notice=group.name+': '+(results.length-failed.length)+' geändert, '+failed.length+' fehlgeschlagen, '+(group.device_ids.length-targets.length)+' übersprungen.';
+    if(failed.length)this.error=failed.map(r=>r.reason?.message||String(r.reason)).join(' · ');
+    this.busy=false;this.render();
+  }
   wave(intensity,frequency,mode){const amp=8+n(intensity)*.23,cycles=1.15+n(frequency)/18,points=[];for(let x=0;x<=300;x+=4)points.push(x+','+(50-Math.sin(x/300*Math.PI*2*cycles)*amp).toFixed(1));const square=/square|rechteck|pulse|puls/i.test(String(mode||''));const path=constant(mode)?'M0 50 H300':square?'M0 50 H38 V'+(50+amp)+' H76 V'+(50-amp)+' H114 V'+(50+amp)+' H152 V'+(50-amp)+' H190 V'+(50+amp)+' H228 V'+(50-amp)+' H266 V'+(50+amp)+' H300':('M'+points.join(' L'));const box=el('div',null,'wave');box.innerHTML='<svg viewBox="0 0 300 100" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="j-wave" x1="0" x2="1"><stop stop-color="#44ddd2"/><stop offset="1" stop-color="#4c8cff"/></linearGradient><linearGradient id="j-fill" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#44ddd2" stop-opacity=".18"/><stop offset="1" stop-color="#44ddd2" stop-opacity="0"/></linearGradient></defs><path d="M0 50 H300" stroke="rgba(255,255,255,.24)" stroke-dasharray="3 5"/><path d="'+path+' V100 H0 Z" fill="url(#j-fill)"/><path d="'+path+'" fill="none" stroke="url(#j-wave)" stroke-width="3" stroke-linecap="round"/></svg>';return box}
-  slider(entity,title,fn){
+  slider(entity,title,fn,unit){
     if(!entity)return null;
     this._drafts??=new Map();
     const state=this._hass.states[entity.entity_id],key=entity.entity_id+title;
@@ -36,7 +81,7 @@ class JebaoStudioPanel extends HTMLElement {
     input.type='range';number.type='number';number.inputMode='decimal';
     for(const field of [input,number]){field.min=state.attributes.min??0;field.max=state.attributes.max??100;field.step=state.attributes.step||1;field.value=draft?.value??state.state;field.setAttribute('aria-label',title);field.disabled=this.busy}
     number.style.cssText='width:76px;padding:8px;border:1px solid var(--line);border-radius:9px;background:transparent;color:inherit;text-align:right';
-    entry.append(number,el('span',' '+(state.attributes.unit_of_measurement||'%')));label.append(el('span',title),entry);
+    entry.append(number,el('span',' '+(unit||state.attributes.unit_of_measurement||'%')));label.append(el('span',title),entry);
     const paint=()=>input.style.setProperty('--value',(input.value-input.min)/(input.max-input.min||1)*100+'%');paint();
     let committed=Number(input.value);
     const begin=()=>{this._interacting=true};
@@ -45,8 +90,8 @@ class JebaoStudioPanel extends HTMLElement {
       const next=number.valueAsNumber;if(next===committed){this._interacting=false;return}
       committed=next;this._interacting=true;input.disabled=number.disabled=true;hint.textContent='Wird gesendet …';
       this._drafts.set(key,{value:next,until:Date.now()+5000});
-      try{await fn(next);if(this.error){this._drafts.delete(key);hint.textContent=this.error}else hint.textContent='Gesendet · Status wird abgeglichen'}
-      catch(error){this._drafts.delete(key);this.error=error.message||String(error);hint.textContent=this.error}
+      try{await fn(next);if(this.error){this._drafts.delete(key);committed=Number(state.state);hint.textContent=this.error}else hint.textContent='Gesendet · Status wird abgeglichen'}
+      catch(error){this._drafts.delete(key);committed=Number(state.state);this.error=error.message||String(error);hint.textContent=this.error}
       finally{input.disabled=number.disabled=false;this._interacting=false;setTimeout(()=>this.render(),5100)}
     };
     input.onpointerdown=begin;input.onkeydown=begin;input.onpointerup=()=>{if(number.valueAsNumber===committed)this._interacting=false};input.onkeyup=()=>{if(number.valueAsNumber===committed)this._interacting=false};input.onpointercancel=()=>{this._interacting=false;this.render()};
@@ -56,7 +101,7 @@ class JebaoStudioPanel extends HTMLElement {
     number.onblur=()=>{if(number.checkValidity()&&number.value!=='')commit();else{number.value=input.value=committed;paint();this._interacting=false}};
     input.onblur=()=>{this._interacting=false};wrap.append(label,input,hint);return wrap;
   }
-  picker(entity,fn){if(!entity)return null;const state=this._hass.states[entity.entity_id],row=el('label',null,'mode-picker'),select=el('select');row.append(el('span','Wellenmodus'));for(const v of state.attributes.options||[]){const o=el('option',labels[v]||v);o.value=v;o.selected=v===state.state;select.append(o)}select.disabled=this.busy;select.onchange=()=>fn(select.value);row.append(select);return row}
+  picker(entity,fn){if(!entity)return null;const state=this._hass.states[entity.entity_id],row=el('label',null,'mode-picker'),select=el('select');row.append(el('span','Wellenmodus'));for(const v of state.attributes.options||[]){const o=el('option',labels[v]||v);o.value=v;o.selected=v===state.state;select.append(o)}select.disabled=this.busy;select.setAttribute('aria-label',entity.name||'Modus');select.onchange=async()=>{select.disabled=true;try{await fn(select.value)}finally{select.disabled=false;select.blur();this.render()}};select.onblur=()=>{if(!this.busy)this.render()};row.append(select);return row}
   card(device){const card=el('article',null,'card');if(device.configured_only){card.append(el('div','GESPEICHERT · NICHT GELADEN','eyebrow'),el('h2',device.name),el('p','Der Controller ist eingerichtet, aber nicht aktiv. Bitte Home Assistant neu starten und die Integration prüfen.','subtle'));return card}const c=controls(device,this._hass.states),online=device.entities.some(e=>!offline(this._hass.states[e.entity_id])),raw=this._hass.states[c.mode?.entity_id]?.state,mode=labels[raw]||raw||'Automatisch',intensity=value(c.intensity,this._hass.states),frequency=value(c.frequency,this._hass.states),head=el('div',null,'card-header'),copy=el('div');copy.append(el('div',online?'LIVE · WLAN':'OFFLINE','eyebrow'),el('h2',device.name),el('p',mode+' · '+intensity+'% Leistung','subtle'));head.append(copy,el('span',online?'Verbunden':'Nicht erreichbar',online?'pill live':'pill'));card.append(head,this.wave(intensity,frequency,raw));const actions=el('div',null,'actions');if(c.power){const on=this._hass.states[c.power.entity_id]?.state==='on';actions.append(this.button(on?'Ausschalten':'Einschalten',()=>this.set(c.power.entity_id,!on),on?'primary':'secondary'))}if(c.feed)actions.append(this.button('Fütterungspause',()=>this.set(c.feed.entity_id,true),'secondary'));card.append(actions);if(!online){card.append(el('p','Steuerung wird wieder verfügbar, sobald der Controller erreichbar ist.','offline-note'));return card}const area=el('div',null,'control-area'),strength=this.slider(c.intensity,'Strömungsintensität',x=>this.set(c.intensity.entity_id,x));if(strength)area.append(strength);if(!constant(raw)){const frequencyControl=this.slider(c.frequency,'Wellenfrequenz',x=>this.set(c.frequency.entity_id,x));if(frequencyControl)area.append(frequencyControl)}card.append(area);const picker=this.picker(c.mode,x=>this.set(c.mode.entity_id,x));if(picker)card.append(picker);return card}
   groupCard(group){const members=this.pumps().filter(d=>group.device_ids.includes(d.id)),all=members.map(d=>controls(d,this._hass.states)),first=key=>all.find(c=>c[key])?.[key],modeEntity=first('mode'),raw=this._hass.states[modeEntity?.entity_id]?.state,intensity=Math.round(all.reduce((sum,c)=>sum+value(c.intensity,this._hass.states),0)/(all.length||1)),frequency=Math.round(all.reduce((sum,c)=>sum+value(c.frequency,this._hass.states),0)/(all.length||1)),card=el('article',null,'card'),head=el('div',null,'card-header'),copy=el('div');copy.append(el('div','SYNCHRONISIERT','eyebrow'),el('h2',group.name),el('p',members.length+' Pumpe'+(members.length===1?'':'n')+' in dieser Szene','subtle'));head.append(copy,this.button('Bearbeiten',()=>{this.editing=group;this.render()},'icon-button'));card.append(head,this.wave(intensity,frequency,raw));const actions=el('div',null,'actions');if(first('power'))actions.append(this.button('Alle ein',()=>this.setGroup(group,'power',true),'primary'),this.button('Alle aus',()=>this.setGroup(group,'power',false),'secondary'));card.append(actions);const area=el('div',null,'control-area'),sharedStrength=this.slider(first('intensity'),'Gemeinsame Intensität',x=>this.setGroup(group,'intensity',x));if(sharedStrength)area.append(sharedStrength);if(!constant(raw)){const sharedFrequency=this.slider(first('frequency'),'Gemeinsame Frequenz',x=>this.setGroup(group,'frequency',x));if(sharedFrequency)area.append(sharedFrequency)}card.append(area);const picker=this.picker(modeEntity,x=>this.setGroup(group,'mode',x));if(picker)card.append(picker);return card}
   async saveGroup(){const name=this.shadowRoot.querySelector('#group-name').value,device_ids=[...this.shadowRoot.querySelectorAll('[data-device]:checked')].map(input=>input.dataset.device);try{const group=await this._hass.callWS({type:'jebao_studio/group_save',id:this.editing?.id,name,device_ids}),i=this.groups.findIndex(x=>x.id===group.id);if(i<0)this.groups.push(group);else this.groups.splice(i,1,group);this.notice='Gruppe „'+group.name+'“ gespeichert.';this.editing=null}catch(e){this.error=e.message||String(e)}this.render()}

@@ -1,0 +1,34 @@
+// Run against tools/preview.html with a local HTTP server.
+const {chromium} = require('playwright');
+(async () => {
+  const browser = await chromium.launch({headless:true});
+  const page = await browser.newPage({viewport:{width:1280,height:1000}});
+  const errors=[];page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('http://127.0.0.1:8766/tools/preview.html');
+  const panel=page.locator('jebao-studio-panel');
+  await panel.locator('.card').first().waitFor();
+  const numeric=panel.locator('input[type=number]').first();
+  await numeric.fill('73');await numeric.press('Enter');
+  if(await numeric.inputValue()!=='73')throw new Error('Number input reset');
+  await numeric.blur();
+  await panel.locator('.card').first().locator('summary').click();
+  await panel.getByText(/Automatik kann manuelle Werte/).waitFor();
+  await panel.getByRole('button',{name:'Zeitplan ausschalten',exact:true}).click();
+  await panel.locator('.card').first().locator('summary').click();
+  await panel.getByRole('button',{name:'Zeitplan einschalten',exact:true}).waitFor();
+  await panel.getByRole('button',{name:'Fütterungspause',exact:true}).first().click();
+  await panel.getByRole('button',{name:'Fütterung beenden',exact:true}).click();
+  await panel.getByRole('button',{name:'Gruppen',exact:true}).click();
+  await panel.getByText('Unterschiedliche Modi',{exact:true}).waitFor({state:'attached'});
+  await panel.getByRole('button',{name:'Alle aus',exact:true}).click();
+  await panel.getByText(/2 geändert, 0 fehlgeschlagen/).waitFor();
+  await panel.getByRole('button',{name:'Pumpen',exact:true}).click();
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:'docs/studio-preview-mobile.png',fullPage:true});
+  if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw new Error('Mobile horizontal overflow');
+  await page.setViewportSize({width:1280,height:1000});
+  await page.screenshot({path:'docs/studio-preview.png',fullPage:true});
+  await browser.close();
+  if(errors.length)throw new Error(errors.join('\n'));
+  console.log('Desktop/mobile rendering, number entry, mixed group modes and group commands passed.');
+})().catch(error=>{console.error(error);process.exitCode=1});

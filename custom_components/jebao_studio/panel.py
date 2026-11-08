@@ -22,7 +22,7 @@ async def async_register_studio_panel(hass):
         await async_register_panel(
             hass, frontend_url_path=PANEL_PATH,
             webcomponent_name="jebao-studio-panel", sidebar_title="Jebao Studio",
-            sidebar_icon="mdi:waves", module_url="/jebao_studio_panel/jebao-studio.js?v=0.3.3",
+            sidebar_icon="mdi:waves", module_url="/jebao_studio_panel/jebao-studio.js?v=0.4.0",
             require_admin=True, embed_iframe=False,
         )
 

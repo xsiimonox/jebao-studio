@@ -109,9 +109,12 @@ def _merge_config(base_config: dict, child_config: dict) -> dict:
 
     merged_platforms = {}
     for platform_name, attrs in base_platforms.items():
-        merged_platforms[platform_name] = list(attrs)
+        merged_platforms[platform_name] = dict(attrs) if isinstance(attrs, dict) else list(attrs)
 
     for platform_name, attrs in child_platforms.items():
+        if isinstance(attrs, dict):
+            merged_platforms[platform_name] = {**merged_platforms.get(platform_name, {}), **attrs}
+            continue
         if platform_name not in merged_platforms:
             merged_platforms[platform_name] = []
         merged_platforms[platform_name].extend(attrs)
@@ -176,6 +179,7 @@ class JebaoDevice:
         self.device_config: dict = {}
         self.giz_device = None
         self._status_callbacks: set[Callable[[DeviceStatus], None]] = set()
+        self._write_lock = asyncio.Lock()
         self._connection_callbacks: set[Callable[[bool], None]] = set()
         self._ip_changed_callback: Callable[[str, str], None] | None = None
         self._rediscovery_task: asyncio.Task | None = None
@@ -373,7 +377,10 @@ class JebaoDevice:
                 "Cannot set attribute %s; device is not connected", attr_name
             )
             return
-        await self.giz_device.set_device_attribute(attr_name, value)
+        # Serialize writes to one controller so its ACK/status cannot race
+        # another command built from the same older packed status block.
+        async with self._write_lock:
+            await self.giz_device.set_device_attribute(attr_name, value)
 
     def __repr__(self) -> str:
         return f"<JebaoDevice ip={self.ip}, connected={bool(self.giz_device)}, product_key={self.product_key}>"

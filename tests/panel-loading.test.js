@@ -67,6 +67,7 @@ test('groups API failure preserves pump cards and explains the problem', async (
 test('status renders preserve pointer edits and writes', async () => {
   const panel = await boot();
   let draws = 0;
+  panel.decorate = () => {};
   panel.render = () => { draws++; };
   panel.connectedCallback();
   panel._interacting = true;
@@ -98,4 +99,18 @@ test('numeric entry and slider stay synchronized and send once on commit', async
   number.value = '101';
   await number.onchange();
   assert.deepEqual(sent, [73]);
+});
+
+test('group checks every range before sending and reports partial failure', async () => {
+  const panel=await boot();
+  panel.devices=['left','right'].map(id=>({id,kind:'wavemaker',entities:[{entity_id:'number.'+id,attribute:'Flow'}]}));
+  let sends=0;
+  panel._hass={states:{'number.left':{state:'40',attributes:{min:0,max:100}},'number.right':{state:'40',attributes:{min:0,max:60}}},callService:async(domain,service,data)=>{sends++;if(data.entity_id==='number.right')throw new Error('Controller offline')}};
+  const group={name:'Riff',device_ids:['left','right']};
+  await panel.setGroup(group,'intensity',80);
+  assert.equal(sends,0);
+  await panel.setGroup(group,'intensity',50);
+  assert.equal(sends,2);
+  assert.match(panel.notice,/1 geändert, 1 fehlgeschlagen/);
+  assert.match(panel.error,/Controller offline/);
 });

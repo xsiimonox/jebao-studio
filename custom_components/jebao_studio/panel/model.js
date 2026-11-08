@@ -15,7 +15,8 @@ export function command(entityId, value, state) {
     return [domain, value ? 'turn_on' : 'turn_off', {entity_id: entityId}];
   if (domain === 'select' && state.attributes.options?.includes(value))
     return [domain, 'select_option', {entity_id: entityId, option: value}];
-  if (domain === 'number' && Number.isFinite(value) && value >= state.attributes.min && value <= state.attributes.max)
+  if (domain === 'number' && Number.isFinite(value) && value >= state.attributes.min && value <= state.attributes.max &&
+      Math.abs((value-state.attributes.min)/(state.attributes.step||1)-Math.round((value-state.attributes.min)/(state.attributes.step||1)))<1e-8)
     return [domain, 'set_value', {entity_id: entityId, value}];
   throw new Error('Dieser Wert wird vom Controller nicht unterstützt.');
 }
@@ -26,6 +27,24 @@ export function groupDevices(devices, tab) {
 
 export function controllable(device, states) {
   return device.entities.some(entity => !offline(states[entity.entity_id]) && ['number', 'switch', 'select'].includes(entity.entity_id.split('.')[0]));
+}
+
+// Registry metadata is stable even when users rename entities or translate HA.
+export function controlsForDevice(device, states) {
+  const active = device.entities.filter(e => !offline(states[e.entity_id]));
+  const pick = (attribute, domain, pattern) => active.find(e => e.attribute === attribute) ||
+    active.find(e => !e.attribute && e.entity_id.startsWith(domain + '.') && pattern.test(
+      e.entity_id + ' ' + (e.name || '') + ' ' + (states[e.entity_id]?.attributes.friendly_name || '')));
+  return {
+    power: pick('SwitchON','switch',/switchon|power|pumpe|ein.?aus/i),
+    feed: pick('FeedSwitch','switch',/feed|fütter/i),
+    intensity: pick('Flow','number',/flow|leistung|intensit/i),
+    frequency: pick('Frequency','number',/frequency|frequenz/i),
+    feedTime: pick('FeedTime','number',/feedtime|fütter.*zeit/i),
+    timer: pick('TimerON','switch',/timeron|zeitplan/i),
+    linkage: pick('Linkage','select',/linkage|kopplung/i),
+    mode: pick('Mode','select',/mode|modus/i),
+  };
 }
 
 export function controlsForGroup(devices, states) {

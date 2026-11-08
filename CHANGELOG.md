@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.4.0
+
+- Stabile Attributzuordnung auch bei umbenannten oder übersetzten Entitäten.
+- Fütterungsdauer, Fütterung beenden, Zeitplan, Kopplung und aktive Pumpenfehler im Studio.
+- Gruppen prüfen jeden Controller vorab; gemischte Modi, Leistungsbereiche und Teilerfolge werden angezeigt.
+- Schreibzugriffe je WLAN-Controller serialisiert; Fehler bei gleichnamigen Gruppen und geerbten Auswahlprofilen behoben.
+- Browserprüfung für Desktop und Mobilgeräte inklusive echter UI-Interaktionen mit Beispieldaten.
+
 ## 0.3.3
 
 - Slider und direkte Zahleneingabe für Leistung/Frequenz bei Einzelpumpen und Gruppen.
