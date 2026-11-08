@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.4.4
+
+- Gruppenname und Pumpenauswahl bleiben bei HA-Statusupdates und Speicherfehlern erhalten.
+- Gruppenbearbeitung nutzt unabhängige Entwürfe; Abbrechen verändert keine gespeicherte Gruppe.
+- Mobile Seitenleistenansicht für schmale Geräte mit größeren Touchflächen und angepasster Navigation optimiert.
+- Browserprüfungen um vollständige Gruppenabläufe, Statusupdates und Speicherfehler erweitert.
+
 ## 0.4.3
 
 - HA-Diagnosedownload enthält die gecachten AutoTime-Zeitplanfelder als Hexdaten zur Protokollanalyse; keine Schreibbefehle oder Gerätekennungen.
