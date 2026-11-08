@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.2.7
+
+- Neue Strömungsoberfläche mit Live-Wellenbild für Intensität und Frequenz.
+- Direkte Steuerung von Leistung, Frequenz und Wellenmodus pro Pumpe sowie synchron für Pumpengruppen.
+
 ## 0.2.6
 
 - Übernimmt den Status aus der Controller-Antwort nach Schreibbefehlen für Leistung, Modus und Schalter.
