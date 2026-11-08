@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.3.1
+
+- Leistungs- und Modusentitäten aktualisieren ihre Home-Assistant-Anzeige nach bestätigtem LAN-Befehl sofort.
+
 ## 0.3.0
 
 - Vollständig überarbeitete, nativeartige Studio-Oberfläche mit ruhigem Wellen-Dashboard, großen Bedienelementen und klarer Gruppenansicht.

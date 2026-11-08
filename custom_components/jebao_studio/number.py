@@ -90,6 +90,11 @@ class JebaoNumberEntity(JebaoEntity, NumberEntity):
             raise HomeAssistantError("Wert außerhalb des Controller-Bereichs.")
         int_value = int(value)
         await self._device.async_set_attribute(self._attribute_name, int_value)
+        # LAN controllers can take a moment to publish their next status
+        # frame. Keep the native HA control responsive after an acknowledged
+        # command; a later device status remains authoritative.
+        self._current_value = float(int_value)
+        self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
         await (

@@ -136,6 +136,10 @@ class JebaoSelectEntity(JebaoEntity, SelectEntity):
             )
             return
         await self._device.async_set_attribute(self._attribute_name, value)
+        # Reflect a successful local command immediately. The next pushed
+        # controller status can still replace this optimistic value.
+        self._current_option = option
+        self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
         """Register callback."""
