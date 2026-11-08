@@ -15,7 +15,7 @@
   "documentation": "https://github.com/xsiimonox/jebao-studio",
   "iot_class": "local_push",
   "requirements": [],
-  "version": "0.4.1",
+  "version": "0.4.2",
   "integration_type": "hub",
   "issue_tracker": "https://github.com/xsiimonox/jebao-studio/issues"
 }

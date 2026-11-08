@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.4.2
+
+- Wellenvorschau korrigiert: höhere Frequenz-Controllerwerte bedeuten langsamere Wellen.
+- Leistung, Frequenz und Modus werden bei fehlender Bestätigung begrenzt wiederholt und zurückgelesen.
+- Programm-Modus verhindert manuelle Reglerbefehle auch im lokalen Backend.
+
 ## 0.4.1
 
 - Programm-/Manual-Betriebsart sichtbar auf der Pumpenkarte und direkt umschaltbar.

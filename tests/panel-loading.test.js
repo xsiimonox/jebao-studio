@@ -114,3 +114,12 @@ test('group checks every range before sending and reports partial failure', asyn
   assert.match(panel.notice,/1 geändert, 1 fehlgeschlagen/);
   assert.match(panel.error,/Controller offline/);
 });
+
+test('higher frequency controller values draw fewer cycles for sine and pulse', async () => {
+  const panel=await boot();
+  for(const mode of ['sine_wave','square_wave']){
+    const path=f=>panel.wave(70,f,mode).innerHTML.match(/<path d="(M[^\"]+) V100/)[1];
+    const crossings=f=>path(f).split(' L').map(p=>Number(p.split(',')[1])).filter(Number.isFinite).reduce((a,y,i,all)=>a+(i>0&&(y>50)!==(all[i-1]>50)?1:0),0);
+    assert.ok(crossings(10)>crossings(90));
+  }
+});

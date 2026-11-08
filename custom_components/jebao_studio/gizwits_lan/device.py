@@ -296,7 +296,27 @@ class Device:
         Raises:
             RuntimeError: If device not connected
         """
-        return await self.set_multiple_attributes({attr_name: value}, timeout)
+        if attr_name not in {"Flow", "Frequency", "Mode"}:
+            return await self.set_multiple_attributes({attr_name: value}, timeout)
+        for attempt in range(3):
+            if self.get_attribute("TimerON") is True:
+                raise ProtocolError("Programm-Modus aktiv. Für manuelle Änderungen zuerst auf Manual umstellen.")
+            try:
+                ack = await self.set_multiple_attributes({attr_name: value}, timeout)
+                if ack and len(ack) >= self.max_status_len:
+                    return ack  # Full ACK was already checked against the target.
+                # A bare ACK confirms transport only, not the requested setting.
+                if await self.request_status_update(timeout=timeout) and self.get_attribute(attr_name) == value:
+                    return ack
+                raise ProtocolError("Controller did not confirm requested value for: " + attr_name)
+            except ProtocolError:
+                if attempt == 2:
+                    raise
+                # Give delayed firmware updates time to settle before resending.
+                await asyncio.sleep(0.35 * (attempt + 1))
+                if await self.request_status_update(timeout=timeout) and self.get_attribute(attr_name) == value:
+                    return b""  # Read-back confirms the previous command.
+                logger.debug("Retrying %s write, attempt %d/3", attr_name, attempt + 2)
 
     async def set_multiple_attributes(self, updates: dict, timeout=3.0):
         if not self._connected:  # Check TCP connection state

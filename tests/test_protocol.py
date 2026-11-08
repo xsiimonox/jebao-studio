@@ -42,7 +42,7 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
             sent.append(payload[4:])
             return b'\x00'
         device._send_command_with_seq = send
-        await device.set_device_attribute('Flow', 73)
+        await device.set_multiple_attributes({'Flow': 73})
         # action + eight datapoint flags + ten live-control bytes.
         self.assertEqual(len(sent[0]), 19)
         self.assertEqual(sent[0][0], 1)
@@ -57,7 +57,7 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(0)
             return b'\x00'
         device._send_command_with_seq = send
-        await asyncio.gather(*(device.set_device_attribute('Flow', value) for value in (30, 40, 50)))
+        await asyncio.gather(*(device.set_multiple_attributes({'Flow': value}) for value in (30, 40, 50)))
         self.assertEqual(len(set(sequences)), 3)
 
     async def test_write_ack_applies_the_controller_status_to_entities(self):
@@ -79,6 +79,45 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(RuntimeError):
             await make_device().set_device_attribute('SwitchON', True)
 
+    async def test_retries_numeric_write_until_full_ack_matches(self):
+        device = make_device(); device._connected = True
+        calls = []
+        async def send(cmd, response, seq, payload, timeout):
+            calls.append(seq)
+            status = bytearray(device.max_status_len)
+            status[2] = 73 if len(calls) == 2 else 40
+            return b'\x00' + status
+        async def readback(timeout=3):
+            return False
+        device._send_command_with_seq = send
+        device.request_status_update = readback
+        await device.set_device_attribute('Flow', 73)
+        self.assertEqual(len(calls), 2)
+        self.assertNotEqual(calls[0], calls[1])
+        self.assertEqual(device.get_attribute('Flow'), 73)
+
+    async def test_delayed_readback_prevents_duplicate_write(self):
+        device = make_device(); device._connected = True
+        calls = []
+        async def send(*args):
+            calls.append(args)
+            return b'\x00'
+        async def readback(timeout=3):
+            status = bytearray(device.max_status_len); status[3] = 61
+            device._apply_status_data(status)
+            return True
+        device._send_command_with_seq = send
+        device.request_status_update = readback
+        await device.set_device_attribute('Frequency', 61)
+        self.assertEqual(len(calls), 1)
+
+    async def test_program_mode_stops_manual_write_before_sending(self):
+        device = make_device(); device._connected = True
+        status = bytearray(device.max_status_len); status[1] = 8
+        device._apply_status_data(status)
+        with self.assertRaisesRegex(ProtocolError, 'Manual'):
+            await device.set_device_attribute('Flow', 73)
+
     async def test_mode_preserves_neighbouring_power_and_linkage(self):
         device = make_device(); device._connected = True
         initial = bytearray(device.max_status_len)
@@ -90,7 +129,7 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
             return b'\x00'
         device._send_command_with_seq = send
         for mode in range(4):
-            await device.set_device_attribute('Mode', mode)
+            await device.set_multiple_attributes({'Mode': mode})
             self.assertEqual(sent[-1][1:9], bytes.fromhex('0000000000000020'))
             self.assertEqual(sent[-1][9:13], bytes([0, 0x81 | (mode << 5), 75, 61]))
 
@@ -104,6 +143,9 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
                 # Full controller status still says Flow=0, rejecting Flow=73.
                 await device._handle_incoming_packet(b'\x00\x94', seq + b'\x00' + bytes(device.max_status_len))
         device.writer = Writer()
+        async def no_readback(timeout=3):
+            return False
+        device.request_status_update = no_readback
         with self.assertRaisesRegex(ProtocolError, 'Flow'):
             await device.set_device_attribute('Flow', 73)
         self.assertTrue(device.writer.packet.startswith(b'\x00\x00\x00\x03'))
