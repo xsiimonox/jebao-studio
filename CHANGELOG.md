@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.3.3
+
+- Slider und direkte Zahleneingabe für Leistung/Frequenz bei Einzelpumpen und Gruppen.
+- Laufende Eingaben und Schreibbefehle werden gegen Neuzeichnen durch Statusupdates geschützt.
+- Ausstehende Sollwerte bleiben kurz sichtbar, bevor der Controllerstatus wieder maßgeblich wird.
+
 ## 0.3.2
 
 - Gizwits-Steuerblock erhält Nachbarwerte; vollständige ACK-Antworten werden auf den angeforderten Wert geprüft.

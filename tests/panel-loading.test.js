@@ -11,7 +11,13 @@ const cachedModel = 'export const command=()=>{},offline=()=>{},labels={},groupD
 
 async function boot(panelSource = source) {
   const registry = new Map();
-  const context = createContext({HTMLElement: class {
+  const context = createContext({setTimeout: () => {}, Date, document: {createElement: tag => ({
+    tag, children: [], style: {setProperty() {}}, setAttribute() {},
+    append(...items) { this.children.push(...items); },
+    checkValidity() { return this.value !== '' && Number(this.value) >= Number(this.min) && Number(this.value) <= Number(this.max); },
+    get valueAsNumber() { return this.value === '' ? NaN : Number(this.value); },
+    reportValidity() {},
+  })}, HTMLElement: class {
     attachShadow() { this.shadowRoot = {}; }
   }, customElements: {get: key => registry.get(key), define: (key, value) => registry.set(key, value)}});
   const module = new SourceTextModule(panelSource, {context});
@@ -56,4 +62,40 @@ test('groups API failure preserves pump cards and explains the problem', async (
   assert.equal(panel.devices, devices);
   assert.equal(panel.loading, false);
   assert.match(panel.notice, /unknown_command/);
+});
+
+test('status renders preserve pointer edits and writes', async () => {
+  const panel = await boot();
+  let draws = 0;
+  panel.render = () => { draws++; };
+  panel.connectedCallback();
+  panel._interacting = true;
+  panel.render();
+  panel._interacting = false;
+  panel.busy = true;
+  panel.render();
+  assert.equal(draws, 0);
+  panel.busy = false;
+  panel.render();
+  assert.equal(draws, 1);
+});
+
+test('numeric entry and slider stay synchronized and send once on commit', async () => {
+  const panel = await boot();
+  panel._hass = {states: {'number.flow': {state:'40', attributes:{min:0,max:100,step:1}}}};
+  const sent = [];
+  const control = panel.slider({entity_id:'number.flow'}, 'Intensität', async next => sent.push(next));
+  const number = control.children[0].children[1].children[0];
+  const range = control.children[1];
+  number.value = '73'; number.oninput();
+  assert.equal(range.value, '73');
+  assert.equal(sent.length, 0);
+  await number.onchange();
+  await number.onblur();
+  assert.deepEqual(sent, [73]);
+  const redraw = panel.slider({entity_id:'number.flow'}, 'Intensität', () => {});
+  assert.equal(Number(redraw.children[1].value), 73);
+  number.value = '101';
+  await number.onchange();
+  assert.deepEqual(sent, [73]);
 });
