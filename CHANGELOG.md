@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.3.0
+
+- Vollständig überarbeitete, nativeartige Studio-Oberfläche mit ruhigem Wellen-Dashboard, großen Bedienelementen und klarer Gruppenansicht.
+
 ## 0.2.10
 
 - Behebt MLW-Leistungs-, Frequenz- und Modusbefehle durch den kompakten Jebao-Steuerblock.
