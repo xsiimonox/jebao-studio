@@ -32,7 +32,22 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
                 device._send_command_with_seq = send
                 await device.set_device_attribute('SwitchON', value)
                 capture = (ROOT / f'tests/fixtures/switchon_{name}.bin').read_bytes()[13:]
-                self.assertEqual(sent[0][:len(capture)], capture)
+                self.assertEqual(sent[0], capture)
+
+    async def test_flow_write_uses_the_compact_live_control_block(self):
+        """MLW ignores numeric controls when the 400-byte timer block is sent."""
+        device = make_device(); device._connected = True
+        sent = []
+        async def send(cmd, response, seq, payload, timeout):
+            sent.append(payload[4:])
+            return b'\x00'
+        device._send_command_with_seq = send
+        await device.set_device_attribute('Flow', 73)
+        # action + eight datapoint flags + ten live-control bytes.
+        self.assertEqual(len(sent[0]), 19)
+        self.assertEqual(sent[0][0], 1)
+        self.assertEqual(sent[0][1:9], b'\x00\x00\x00\x00\x00\x00\x01\x00')
+        self.assertEqual(sent[0][11], 73)
 
     async def test_concurrent_writes_have_distinct_sequences(self):
         device = make_device(); device._connected = True

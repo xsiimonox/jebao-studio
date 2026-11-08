@@ -309,8 +309,19 @@ class Device:
         flags_count = (max_id // 8) + 1
         attr_flags = bytearray(flags_count)
 
-        max_offset = 0
-        for a in self.writable_attrs:
+        # A 0x93 command is a *partial* update.  Do not serialize the whole
+        # writable model here: MLW profiles contain calendar fields up to
+        # byte 400, while the official app writes the compact, 10-byte live
+        # control block.  The controllers accept the power bit at the start
+        # of an oversized frame but ignore Flow/Frequency farther into it.
+        # Keep the app's 10-byte minimum and grow only when the caller really
+        # addresses a later attribute (for example, a timer record).
+        requested_attrs = [
+            a for name, a in {a["name"]: a for a in self.writable_attrs}.items()
+            if name in updates
+        ]
+        max_offset = 10
+        for a in requested_attrs:
             pos = a["position"]
             bo = pos["byte_offset"]
             end = bo + pos["len"] if pos["unit"] == "byte" else bo + 1

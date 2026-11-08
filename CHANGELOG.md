@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.2.10
+
+- Behebt MLW-Leistungs-, Frequenz- und Modusbefehle durch den kompakten Jebao-Steuerblock.
+
 ## 0.2.9
 
 - Im Modus „Konstant“ wird keine Wellenfrequenz mehr angezeigt oder gesendet.
