@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.2.8
+
+- Pumpenkarten laden unabhängig von einer langsamen oder fehlgeschlagenen Gruppenabfrage.
+
 ## 0.2.7
 
 - Neue Strömungsoberfläche mit Live-Wellenbild für Intensität und Frequenz.
