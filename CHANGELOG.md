@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.4.3
+
+- HA-Diagnosedownload enthält die gecachten AutoTime-Zeitplanfelder als Hexdaten zur Protokollanalyse; keine Schreibbefehle oder Gerätekennungen.
+
 ## 0.4.2
 
 - Wellenvorschau korrigiert: höhere Frequenz-Controllerwerte bedeuten langsamere Wellen.

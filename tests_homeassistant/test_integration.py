@@ -109,6 +109,10 @@ async def test_catalog_uses_registry_names_and_diagnostics_omit_credentials(hass
     assert catalog[0]['kind'] == 'wavemaker'
     assert any(e['entity_id'].startswith('number.') for e in catalog[0]['entities'])
     diagnostic = await async_get_config_entry_diagnostics(hass,config)
+    assert diagnostic['devices'][0]['schedule']['source'] == 'cached_controller_status'
+    from custom_components.jebao_studio.diagnostics import schedule_snapshot
+    snapshot = schedule_snapshot(SimpleNamespace(get_attribute=lambda name: b'\x01\x02\x03\x04\x05\x06\x07\x08' if name == 'AutoTime00' else None))
+    assert snapshot['fields']['AutoTime00'] == {'hex':'0102030405060708','length':8}
     serialized = json.dumps([catalog,diagnostic])
     assert 'secret-password' not in serialized and 'secret-token' not in serialized
     assert '192.0.2.1' not in json.dumps(diagnostic)
